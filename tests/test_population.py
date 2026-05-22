@@ -1,6 +1,6 @@
 import json
 from unittest.mock import patch
-from mcv.population import TraitDimension, Archetype, PersonaStructure, AgentProfile, PersonaPool, PopulationResearcher
+from user_soul.population import TraitDimension, Archetype, PersonaStructure, AgentProfile, PersonaPool, PopulationResearcher
 
 def test_trait_dimension_fields():
     td = TraitDimension(
@@ -199,7 +199,7 @@ def _mock_researcher_response() -> str:
     })
 
 def test_researcher_returns_persona_structure():
-    with patch("mcv.core._llm_call", return_value=(_mock_researcher_response(), {})):
+    with patch("user_soul.core._llm_call", return_value=(_mock_researcher_response(), {})):
         researcher = PopulationResearcher(api_key="test")
         result = researcher.research("A Ludo mobile app for Arabic families")
     assert isinstance(result, PersonaStructure)
@@ -208,7 +208,7 @@ def test_researcher_returns_persona_structure():
     assert len(result.archetypes) == 3
 
 def test_researcher_trait_dimensions_parsed():
-    with patch("mcv.core._llm_call", return_value=(_mock_researcher_response(), {})):
+    with patch("user_soul.core._llm_call", return_value=(_mock_researcher_response(), {})):
         researcher = PopulationResearcher(api_key="test")
         result = researcher.research("A Ludo app")
     dim = result.trait_dimensions[0]
@@ -217,7 +217,7 @@ def test_researcher_trait_dimensions_parsed():
     assert dim.source == "space2"
 
 def test_researcher_archetypes_parsed():
-    with patch("mcv.core._llm_call", return_value=(_mock_researcher_response(), {})):
+    with patch("user_soul.core._llm_call", return_value=(_mock_researcher_response(), {})):
         researcher = PopulationResearcher(api_key="test")
         result = researcher.research("A Ludo app")
     arch = result.archetypes[0]
@@ -227,14 +227,14 @@ def test_researcher_archetypes_parsed():
     assert "利雅得" in arch.background_story  # human story preserved
 
 def test_researcher_frequencies_sum_to_1():
-    with patch("mcv.core._llm_call", return_value=(_mock_researcher_response(), {})):
+    with patch("user_soul.core._llm_call", return_value=(_mock_researcher_response(), {})):
         researcher = PopulationResearcher(api_key="test")
         result = researcher.research("A Ludo app")
     total = sum(a.frequency for a in result.archetypes)
     assert abs(total - 1.0) < 0.01
 
 def test_researcher_fallback_on_invalid_json():
-    with patch("mcv.core._llm_call", return_value=("not valid json at all", {})):
+    with patch("user_soul.core._llm_call", return_value=("not valid json at all", {})):
         researcher = PopulationResearcher(api_key="test")
         result = researcher.research("some product")
     assert isinstance(result, PersonaStructure)
@@ -243,9 +243,9 @@ def test_researcher_fallback_on_invalid_json():
 
 
 def test_prepare_with_pool_sets_pool():
-    from mcv.user_simulator import UserSimulator
-    from mcv.domain_configs import AppDomainConfig
-    from mcv.schema_extractor import EvaluationMetric
+    from user_soul.user_simulator import UserSimulator
+    from user_soul.domain_configs import AppDomainConfig
+    from user_soul.schema_extractor import EvaluationMetric
     sim = UserSimulator("test user", AppDomainConfig, api_key="test")
     agents = PersonaPool(_make_structure()).generate(6)
     metrics = [EvaluationMetric("day1_return", "bool", "会回来吗？")]
@@ -255,9 +255,9 @@ def test_prepare_with_pool_sets_pool():
 
 def test_simulate_with_pool_uses_human_story():
     """Each session prompt should contain the agent's background story."""
-    from mcv.user_simulator import UserSimulator
-    from mcv.domain_configs import AppDomainConfig
-    from mcv.schema_extractor import EvaluationMetric
+    from user_soul.user_simulator import UserSimulator
+    from user_soul.domain_configs import AppDomainConfig
+    from user_soul.schema_extractor import EvaluationMetric
     from unittest.mock import patch, MagicMock
 
     # Build structure with real background stories
@@ -278,7 +278,7 @@ def test_simulate_with_pool_uses_human_story():
         captured_prompts.append(prompt)
         return "day1_return: yes", {}
 
-    with patch("mcv.core._llm_call", side_effect=fake_llm):
+    with patch("user_soul.core._llm_call", side_effect=fake_llm):
         sim.simulate(n_runs=3)
 
     assert len(captured_prompts) == 3
@@ -289,21 +289,21 @@ def test_simulate_with_pool_uses_human_story():
 
 def test_simulate_with_pool_cycles_when_n_exceeds_pool():
     """If n_runs > len(pool), cycles through pool."""
-    from mcv.user_simulator import UserSimulator
-    from mcv.domain_configs import AppDomainConfig
-    from mcv.schema_extractor import EvaluationMetric
+    from user_soul.user_simulator import UserSimulator
+    from user_soul.domain_configs import AppDomainConfig
+    from user_soul.schema_extractor import EvaluationMetric
     from unittest.mock import patch
     sim = UserSimulator("test user", AppDomainConfig, api_key="test")
     agents = PersonaPool(_make_structure()).generate(6)
     metrics = [EvaluationMetric("day1_return", "bool", "会回来吗？")]
     sim.prepare_with_pool(product="test product", pool=agents, locked_metrics=metrics)
-    with patch("mcv.core._llm_call", return_value=("day1_return: yes", {})):
+    with patch("user_soul.core._llm_call", return_value=("day1_return: yes", {})):
         sim.simulate(n_runs=10)
     assert len(sim._session_results) == 10
 
 
 def test_population_exports_available_at_mcv_root():
-    import mcv
+    import user_soul as mcv
     assert hasattr(mcv, "TraitDimension")
     assert hasattr(mcv, "Archetype")
     assert hasattr(mcv, "PersonaStructure")

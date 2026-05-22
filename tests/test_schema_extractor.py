@@ -1,12 +1,12 @@
 
 
 from unittest.mock import patch
-from mcv.schema_extractor import EvaluationMetric, extract_evaluation_schema
+from user_soul.schema_extractor import EvaluationMetric, extract_evaluation_schema
 
 
 def test_extract_returns_evaluation_metrics():
     mock_resp = '[{"name": "retention", "type": "bool", "question": "会回来吗？"}, {"name": "engagement", "type": "scale_1_5", "question": "投入程度？"}]'
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = (mock_resp, 200)
         metrics = extract_evaluation_schema("用户会留存吗？", api_key="test")
     assert len(metrics) == 2
@@ -18,7 +18,7 @@ def test_extract_returns_evaluation_metrics():
 
 def test_extract_filters_invalid_types():
     mock_resp = '[{"name": "x", "type": "invalid_type", "question": "?"}, {"name": "y", "type": "bool", "question": "yes?"}]'
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = (mock_resp, 200)
         metrics = extract_evaluation_schema("test", api_key="test")
     assert len(metrics) == 1
@@ -26,7 +26,7 @@ def test_extract_filters_invalid_types():
 
 
 def test_extract_handles_malformed_json():
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("not json at all", 100)
         metrics = extract_evaluation_schema("test", api_key="test")
     assert metrics == []
@@ -34,7 +34,7 @@ def test_extract_handles_malformed_json():
 
 def test_extract_uses_sonnet_model():
     mock_resp = '[{"name": "x", "type": "bool", "question": "?"}]'
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = (mock_resp, 200)
         extract_evaluation_schema("test", api_key="test")
     # schema extraction uses Sonnet (default model), not Haiku

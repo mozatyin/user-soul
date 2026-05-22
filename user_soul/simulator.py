@@ -4,8 +4,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-from mcv.scenarios import ScenarioContext
-import mcv.core as _core
+from user_soul.scenarios import ScenarioContext
+import user_soul.core as _core
 
 
 @dataclass
@@ -114,7 +114,7 @@ class PersonaSimulator:
         Total LLM calls = len(personas) × n_runs.
         Each call uses Haiku at temperature=1.0 (true stochasticity).
         """
-        from mcv.scenarios import random_context
+        from user_soul.scenarios import random_context
         from collections import defaultdict
 
         feature_ids = [f["id"] for f in features]

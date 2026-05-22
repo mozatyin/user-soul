@@ -9,7 +9,7 @@ def test_research_aarrr_returns_correct_count():
     """Each input feature gets exactly one FeatureAAR."""
     if not API_KEY:
         pytest.skip("no ANTHROPIC_API_KEY")
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key=API_KEY)
     features = [
         {"id": "invite_friends", "name": "Invite Friends", "description": "Invite friends to join rooms"},
@@ -29,7 +29,7 @@ def test_research_aarrr_scores_in_range():
     """All AARRR scores are 0.0–1.0, confidence is 0.0–1.0."""
     if not API_KEY:
         pytest.skip("no ANTHROPIC_API_KEY")
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key=API_KEY)
     features = [{"id": "coins", "name": "Coins", "description": "Virtual currency for gifts"}]
     result = client.research_aarrr(
@@ -43,7 +43,7 @@ def test_research_aarrr_scores_in_range():
 
 def test_research_aarrr_fallback_on_empty_features():
     """Empty feature list → empty result, no crash."""
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key=API_KEY or "dummy-key-not-used")
     result = client.research_aarrr(product_description="any app", features=[])
     assert result == []
@@ -53,7 +53,7 @@ def test_research_aarrr_invite_friends_referral_high():
     """Invite Friends must score high on referral relative to other dimensions."""
     if not API_KEY:
         pytest.skip("no ANTHROPIC_API_KEY")
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key=API_KEY)
     features = [
         {"id": "invite_friends", "name": "Invite Friends",

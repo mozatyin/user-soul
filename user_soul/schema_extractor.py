@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import mcv.core as _core
+import user_soul.core as _core
 
 
 @dataclass

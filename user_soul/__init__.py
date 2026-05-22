@@ -19,7 +19,29 @@ from user_soul.action_router import (
     group_by_owner, format_action_summary,
 )
 
+# MCVClient — legacy voter interface
+from user_soul.voter import MCVClient
+from user_soul.core import Persona, PersonaDecider
+from user_soul.personas import load_or_generate
+from user_soul.simulator import PersonaSimulator, SimulationRun, FeatureSignal
+from user_soul.cache import load_simulation_cache, save_simulation_cache
+from user_soul.user_simulator import UserSimulator, SessionResult
+from user_soul.domain_configs import DomainConfig, GameDomainConfig, AppDomainConfig, WebDomainConfig, build_domain_config
+from user_soul.schema_extractor import extract_evaluation_schema
+from user_soul.report import MetricResult, CompareReport as _CR, FeatureAAR as _FA, CoherenceReport
+from user_soul.journey import simulate_journey
+from user_soul.gate_ledger import GateLedger
+from user_soul.population import (
+    TraitDimension, Archetype, PersonaStructure as _PS2,
+    PersonaPool, PopulationResearcher,
+)
+from user_soul.behavioral_framework import (
+    SYCOPHANCY_DEFLATOR, BEHAVIORAL_FRAMEWORK_SECTION,
+    ADVERSARIAL_PERSONA_SECTION, BEHAVIORAL_METRICS, COGNITIVE_BUDGETS,
+)
+
 __all__ = [
+    # UserSoul
     "UserSoulClient", "LLMBackend",
     "AgentProfile", "EvaluationMetric", "PersonaStructure",
     "SimulationReport", "CompareReport", "JourneyReport",
@@ -32,4 +54,18 @@ __all__ = [
     "DifferentialDiagnosis", "TierResult", "DiagnosisItem", "DiagnosisCategory",
     "route_diagnosis", "route_flat_feedback",
     "group_by_owner", "format_action_summary",
+    # MCVClient / voter
+    "MCVClient",
+    "Persona", "PersonaDecider", "load_or_generate",
+    "PersonaSimulator", "SimulationRun", "FeatureSignal",
+    "load_simulation_cache", "save_simulation_cache",
+    "UserSimulator", "SessionResult",
+    "DomainConfig", "GameDomainConfig", "AppDomainConfig", "WebDomainConfig", "build_domain_config",
+    "extract_evaluation_schema",
+    "MetricResult", "CoherenceReport",
+    "simulate_journey", "GateLedger",
+    "TraitDimension", "Archetype",
+    "PersonaPool", "PopulationResearcher",
+    "SYCOPHANCY_DEFLATOR", "BEHAVIORAL_FRAMEWORK_SECTION",
+    "ADVERSARIAL_PERSONA_SECTION", "BEHAVIORAL_METRICS", "COGNITIVE_BUDGETS",
 ]

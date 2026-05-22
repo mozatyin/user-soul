@@ -63,7 +63,7 @@ def build_domain_config(
     """
     from pathlib import Path as _Path
     import json as _json
-    import mcv.core as _core
+    import user_soul.core as _core
 
     # Cache hit
     if cache_path is not None:

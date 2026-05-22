@@ -1,13 +1,13 @@
 
 
 from unittest.mock import patch, MagicMock
-from mcv.user_simulator import UserSimulator
-from mcv.domain_configs import GameDomainConfig
-from mcv.schema_extractor import EvaluationMetric
+from user_soul.user_simulator import UserSimulator
+from user_soul.domain_configs import GameDomainConfig
+from user_soul.schema_extractor import EvaluationMetric
 
 
 def test_prepare_extracts_schema():
-    with patch("mcv.schema_extractor.extract_evaluation_schema") as mock_extract:
+    with patch("user_soul.schema_extractor.extract_evaluation_schema") as mock_extract:
         mock_extract.return_value = [EvaluationMetric("x", "bool", "?")]
         sim = UserSimulator("玩家", GameDomainConfig, api_key="test")
         sim.prepare(product="游戏描述", goal="用户会留存吗？")
@@ -16,7 +16,7 @@ def test_prepare_extracts_schema():
 
 
 def test_prepare_returns_self_for_chaining():
-    with patch("mcv.schema_extractor.extract_evaluation_schema") as mock_extract:
+    with patch("user_soul.schema_extractor.extract_evaluation_schema") as mock_extract:
         mock_extract.return_value = []
         sim = UserSimulator("玩家", GameDomainConfig, api_key="test")
         result = sim.prepare(product="游戏", goal="?")
@@ -28,7 +28,7 @@ def test_simulate_calls_llm_n_times():
     sim._metrics = [EvaluationMetric("x", "bool", "?")]
     sim._product = "游戏"
 
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("叙述...\nx: yes", 200)
         sim.simulate(n_runs=5)
 
@@ -41,7 +41,7 @@ def test_simulate_uses_temperature_1():
     sim._metrics = [EvaluationMetric("x", "bool", "?")]
     sim._product = "游戏"
 
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("叙述...\nx: yes", 200)
         sim.simulate(n_runs=1)
 
@@ -53,7 +53,7 @@ def test_simulate_uses_haiku():
     sim._metrics = [EvaluationMetric("x", "bool", "?")]
     sim._product = "游戏"
 
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("叙述...\nx: yes", 200)
         sim.simulate(n_runs=1)
 
@@ -66,7 +66,7 @@ def test_simulate_returns_self_for_chaining():
     sim._metrics = [EvaluationMetric("x", "bool", "?")]
     sim._product = "游戏"
 
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("叙述...\nx: yes", 200)
         result = sim.simulate(n_runs=2)
 
@@ -78,17 +78,17 @@ def test_simulate_stores_session_results():
     sim._metrics = [EvaluationMetric("ret", "bool", "回来吗？")]
     sim._product = "游戏"
 
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("他进入了游戏...\nret: yes", 200)
         sim.simulate(n_runs=3)
 
-    from mcv.user_simulator import SessionResult
+    from user_soul.user_simulator import SessionResult
     assert all(isinstance(r, SessionResult) for r in sim._session_results)
     assert sim._session_results[0].values.get("ret") == "yes"
 
 
 def test_prepare_with_locked_metrics_skips_extraction():
-    with patch("mcv.schema_extractor.extract_evaluation_schema") as mock_extract:
+    with patch("user_soul.schema_extractor.extract_evaluation_schema") as mock_extract:
         locked = [EvaluationMetric("ret", "bool", "回来吗？")]
         sim = UserSimulator("玩家", GameDomainConfig, api_key="test")
         sim.prepare(product="游戏", locked_metrics=locked)

@@ -5,7 +5,7 @@ Three spaces merged into PersonaStructure → PersonaPool → AgentProfile per s
 from __future__ import annotations
 import random
 from dataclasses import dataclass, field
-import mcv.core as _core
+import user_soul.core as _core
 
 
 @dataclass

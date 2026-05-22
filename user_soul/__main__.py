@@ -26,8 +26,8 @@ def run_simulation(
     api_key: str,
 ) -> None:
     """Load features + personas from state_dir, run N simulations, write cache."""
-    from mcv.simulator import PersonaSimulator
-    from mcv.cache import save_simulation_cache
+    from user_soul.simulator import PersonaSimulator
+    from user_soul.cache import save_simulation_cache
 
     features_path = state_dir / "features_for_simulation.json"
     personas_path = state_dir / "personas.json"

@@ -1,14 +1,14 @@
 
 
 from unittest.mock import patch
-from mcv import Persona, PersonaDecider, DecisionResult
+from user_soul import Persona, PersonaDecider, DecisionResult
 
 PERSONAS = [Persona(id="p1", name="Alice", description="A 25yo casual mobile gamer",
                     cohort="18-30 casual gamers", motivations=["fun", "social"],
                     pain_points=["complex UI", "pay-to-win"])]
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validate_fast_true(mock_llm):
     mock_llm.return_value = ('{"result": true, "reasoning": "fits well"}', 50)
     pd = PersonaDecider(PERSONAS, api_key="test", mode="fast")
@@ -20,7 +20,7 @@ def test_validate_fast_true(mock_llm):
     mock_llm.assert_called_once()
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validate_fast_false(mock_llm):
     mock_llm.return_value = ('{"result": false, "reasoning": "irrelevant"}', 30)
     pd = PersonaDecider(PERSONAS, api_key="test", mode="fast")
@@ -31,7 +31,7 @@ def test_validate_fast_false(mock_llm):
     assert result.distribution["true"] == 0.0
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validate_fast_uses_first_persona(mock_llm):
     mock_llm.return_value = ('{"result": true}', 20)
     personas = [

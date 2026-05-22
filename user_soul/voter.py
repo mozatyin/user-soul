@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mcv.core import Persona, DecisionResult, PersonaDecider
-from mcv.personas import load_or_generate
-from mcv.user_simulator import UserSimulator
-from mcv.domain_configs import DomainConfig, build_domain_config
-from mcv.report import SimulationReport, CompareReport, FeatureAAR, CoherenceReport
-from mcv.schema_extractor import EvaluationMetric
-from mcv.population import PopulationResearcher
+from user_soul.core import Persona, DecisionResult, PersonaDecider
+from user_soul.personas import load_or_generate
+from user_soul.user_simulator import UserSimulator
+from user_soul.domain_configs import DomainConfig, build_domain_config
+from user_soul.report import SimulationReport, CompareReport, FeatureAAR, CoherenceReport
+from user_soul.schema_extractor import EvaluationMetric
+from user_soul.population import PopulationResearcher
 
 
 _SOCIAL_ENABLER_KW = frozenset({
@@ -215,7 +215,7 @@ class MCVClient:
         import statistics as _stats
         import json as _json
         import re as _re
-        from mcv import core as _core
+        from user_soul import core as _core
 
         if not features:
             return []
@@ -319,7 +319,7 @@ class MCVClient:
         """
         import json as _json
         import re as _re
-        from mcv import core as _core
+        from user_soul import core as _core
 
         selected_ids = [f["id"] for f in selected_features]
         missing_deps: list = []
@@ -415,7 +415,7 @@ class MCVClient:
         """
         import json as _json
         import re as _re
-        from mcv import core as _core
+        from user_soul import core as _core
 
         if not frictions:
             return {"defects": [], "game_name": game_name, "original_slug": original_slug}
@@ -483,7 +483,7 @@ class MCVClient:
             JourneyReport with completion_rate, drop_off_by_screen, fogg_violations.
             Check report.passes_gate (>=0.70) before proceeding to M4.
         """
-        from mcv.journey import simulate_journey as _simulate_journey
+        from user_soul.journey import simulate_journey as _simulate_journey
         return _simulate_journey(
             screens=screens,
             target_flow=target_flow,

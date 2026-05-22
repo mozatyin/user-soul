@@ -1,13 +1,13 @@
 """Tests for CompareReport and _compute_compare."""
-from mcv.report import CompareReport, _compute_compare, MetricResult, SimulationReport
-from mcv.scenarios import ScenarioContext
+from user_soul.report import CompareReport, _compute_compare, MetricResult, SimulationReport
+from user_soul.scenarios import ScenarioContext
 
 CTX = ScenarioContext("evening", "calm", 1, "curiosity")
 
 
 def _make_bool_report(true_rate: float, n: int = 30) -> SimulationReport:
     import math
-    from mcv.report import _wilson_ci
+    from user_soul.report import _wilson_ci
     lo, hi = _wilson_ci(true_rate, n)
     stdev = round(math.sqrt(true_rate * (1 - true_rate)), 4)
     mr = MetricResult(

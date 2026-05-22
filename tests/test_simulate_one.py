@@ -1,8 +1,8 @@
 
 
 from unittest.mock import patch
-from mcv.simulator import PersonaSimulator, SimulationRun
-from mcv.scenarios import ScenarioContext
+from user_soul.simulator import PersonaSimulator, SimulationRun
+from user_soul.scenarios import ScenarioContext
 
 PERSONAS = [
     {"id": "p1", "name": "Alice", "description": "25yo professional",
@@ -27,7 +27,7 @@ SEEN: f3
 """
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_simulate_one_returns_simulation_run(mock_llm):
     mock_llm.return_value = (MOCK_RESPONSE, 400)
     sim = PersonaSimulator(PERSONAS, api_key="test")
@@ -41,7 +41,7 @@ def test_simulate_one_returns_simulation_run(mock_llm):
     assert "f3" not in run.features_used
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_simulate_one_uses_temperature_1(mock_llm):
     mock_llm.return_value = (MOCK_RESPONSE, 400)
     sim = PersonaSimulator(PERSONAS, api_key="test")
@@ -53,7 +53,7 @@ def test_simulate_one_uses_temperature_1(mock_llm):
            "temperature=1.0 must be passed to _llm_call"
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_simulate_one_uses_haiku(mock_llm):
     mock_llm.return_value = (MOCK_RESPONSE, 400)
     sim = PersonaSimulator(PERSONAS, api_key="test")
@@ -65,7 +65,7 @@ def test_simulate_one_uses_haiku(mock_llm):
            f"Expected haiku model, got: {model_arg}"
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_simulate_one_prompt_contains_all_feature_ids(mock_llm):
     mock_llm.return_value = (MOCK_RESPONSE, 400)
     sim = PersonaSimulator(PERSONAS, api_key="test")
@@ -81,7 +81,7 @@ def test_simulate_one_prompt_contains_all_feature_ids(mock_llm):
     assert "score" not in prompt.lower()
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_simulate_one_handles_malformed_used_line(mock_llm):
     """If USED: line is missing, returns empty features_used."""
     mock_llm.return_value = ("Alice just sat there. She did nothing.\n", 100)

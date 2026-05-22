@@ -1,6 +1,6 @@
 
 
-from mcv.scenarios import ScenarioContext, random_context, ROLE_DAY_RANGES
+from user_soul.scenarios import ScenarioContext, random_context, ROLE_DAY_RANGES
 
 
 def test_scenario_context_fields():

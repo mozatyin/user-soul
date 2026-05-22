@@ -138,7 +138,7 @@ def simulate_journey(
     Returns:
         JourneyReport. Check report.passes_gate (>=0.70) before proceeding to M4.
     """
-    import mcv.core as _core
+    import user_soul.core as _core
 
     if len(target_flow) <= 1:
         return JourneyReport(

@@ -1,9 +1,9 @@
 
 
-from mcv.user_simulator import SessionResult, _build_session_prompt, _parse_session_output
-from mcv.schema_extractor import EvaluationMetric
-from mcv.domain_configs import GameDomainConfig
-from mcv.scenarios import ScenarioContext
+from user_soul.user_simulator import SessionResult, _build_session_prompt, _parse_session_output
+from user_soul.schema_extractor import EvaluationMetric
+from user_soul.domain_configs import GameDomainConfig
+from user_soul.scenarios import ScenarioContext
 
 METRICS = [
     EvaluationMetric(name="day1_return", type="bool", question="你想回来吗？"),

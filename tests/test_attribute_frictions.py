@@ -7,7 +7,7 @@ API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 def test_attribute_frictions_empty_frictions_no_llm():
     """No frictions → empty defects, no LLM call, no crash."""
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key="dummy")  # no API call for empty frictions
     manifest = client.attribute_frictions(
         product="any app", frictions=[], features=[]
@@ -18,7 +18,7 @@ def test_attribute_frictions_empty_frictions_no_llm():
 
 def test_attribute_frictions_passthrough_metadata():
     """game_name and original_slug are passed through to manifest."""
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key="dummy")
     manifest = client.attribute_frictions(
         product="any app", frictions=[],
@@ -32,7 +32,7 @@ def test_attribute_frictions_returns_defects_key():
     """Output must have 'defects' key — direct input to reforge()."""
     if not API_KEY:
         pytest.skip("no ANTHROPIC_API_KEY")
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key=API_KEY)
     manifest = client.attribute_frictions(
         product="Arabic social gaming platform with Ludo and voice rooms",
@@ -51,7 +51,7 @@ def test_attribute_frictions_defect_shape():
     """Each defect must have type/severity/description/affected_screens/suggested_fix."""
     if not API_KEY:
         pytest.skip("no ANTHROPIC_API_KEY")
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key=API_KEY)
     manifest = client.attribute_frictions(
         product="social gaming app",

@@ -1,20 +1,20 @@
 """Tests for MCVClient facade."""
 from unittest.mock import patch, MagicMock
-from mcv.client import MCVClient
-from mcv.report import SimulationReport, CompareReport
-from mcv.core import DecisionResult, Persona
-from mcv.schema_extractor import EvaluationMetric
+from user_soul.voter import MCVClient
+from user_soul.report import SimulationReport, CompareReport
+from user_soul.core import DecisionResult, Persona
+from user_soul.schema_extractor import EvaluationMetric
 
 
 def test_client_simulate_returns_simulation_report():
     client = MCVClient(api_key="test")
     mock_report = MagicMock(spec=SimulationReport)
-    with patch("mcv.client.UserSimulator") as MockSim:
+    with patch("user_soul.voter.UserSimulator") as MockSim:
         instance = MockSim.return_value
         instance.prepare.return_value = instance
         instance.simulate.return_value = instance
         instance.report.return_value = mock_report
-        with patch("mcv.client.build_domain_config") as mock_build:
+        with patch("user_soul.voter.build_domain_config") as mock_build:
             mock_build.return_value = MagicMock()
             result = client.simulate(
                 product="游戏 PRD",
@@ -26,14 +26,14 @@ def test_client_simulate_returns_simulation_report():
 
 
 def test_client_simulate_uses_provided_domain_config():
-    from mcv.domain_configs import GameDomainConfig
+    from user_soul.domain_configs import GameDomainConfig
     client = MCVClient(api_key="test")
-    with patch("mcv.client.UserSimulator") as MockSim:
+    with patch("user_soul.voter.UserSimulator") as MockSim:
         instance = MockSim.return_value
         instance.prepare.return_value = instance
         instance.simulate.return_value = instance
         instance.report.return_value = MagicMock()
-        with patch("mcv.client.build_domain_config") as mock_build:
+        with patch("user_soul.voter.build_domain_config") as mock_build:
             client.simulate("prd", "玩家", "goal", domain_config=GameDomainConfig, n_runs=2)
     mock_build.assert_not_called()
     MockSim.assert_called_once_with("玩家", GameDomainConfig, api_key="test")
@@ -41,12 +41,12 @@ def test_client_simulate_uses_provided_domain_config():
 
 def test_client_simulate_auto_builds_domain_config_when_none():
     client = MCVClient(api_key="test")
-    with patch("mcv.client.UserSimulator") as MockSim:
+    with patch("user_soul.voter.UserSimulator") as MockSim:
         instance = MockSim.return_value
         instance.prepare.return_value = instance
         instance.simulate.return_value = instance
         instance.report.return_value = MagicMock()
-        with patch("mcv.client.build_domain_config") as mock_build:
+        with patch("user_soul.voter.build_domain_config") as mock_build:
             mock_build.return_value = MagicMock()
             client.simulate("prd", "用户", "goal", n_runs=2)
     mock_build.assert_called_once_with("prd", "test")
@@ -55,10 +55,10 @@ def test_client_simulate_auto_builds_domain_config_when_none():
 def test_client_compare_returns_compare_report():
     client = MCVClient(api_key="test")
     mock_compare = MagicMock(spec=CompareReport)
-    with patch("mcv.client.UserSimulator") as MockSim:
+    with patch("user_soul.voter.UserSimulator") as MockSim:
         instance = MockSim.return_value
         instance.compare.return_value = mock_compare
-        with patch("mcv.client.build_domain_config") as mock_build:
+        with patch("user_soul.voter.build_domain_config") as mock_build:
             mock_build.return_value = MagicMock()
             result = client.compare("prd_a", "prd_b", "玩家", "goal", n_runs=5)
     assert result is mock_compare
@@ -73,7 +73,7 @@ def test_client_decide_calls_persona_decider():
     p = Persona("p1", "Alice", "gamer", "18-24", ["fun"], ["ads"])
     client = MCVClient(api_key="test", personas=[p])
     mock_result = MagicMock(spec=DecisionResult)
-    with patch("mcv.client.PersonaDecider") as MockPD:
+    with patch("user_soul.voter.PersonaDecider") as MockPD:
         instance = MockPD.return_value
         instance.classify.return_value = mock_result
         result = client.decide(
@@ -91,10 +91,10 @@ def test_client_decide_calls_persona_decider():
 
 def test_client_decide_auto_generates_personas_when_none():
     client = MCVClient(api_key="test")
-    with patch("mcv.client.PersonaDecider") as MockPD:
+    with patch("user_soul.voter.PersonaDecider") as MockPD:
         instance = MockPD.return_value
         instance.classify.return_value = MagicMock()
-        with patch("mcv.client.load_or_generate") as mock_gen:
+        with patch("user_soul.voter.load_or_generate") as mock_gen:
             mock_gen.return_value = [
                 Persona("p1", "Bob", "user", "25-35", [], [])
             ]

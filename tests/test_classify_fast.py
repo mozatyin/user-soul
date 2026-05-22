@@ -1,13 +1,13 @@
 
 
 from unittest.mock import patch
-from mcv import Persona, PersonaDecider
+from user_soul import Persona, PersonaDecider
 
 PERSONAS = [Persona(id="p1", name="Alice", description="casual gamer",
                     cohort="18-30", motivations=["fun"], pain_points=["ads"])]
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_classify_fast_single(mock_llm):
     mock_llm.return_value = ('{"choice": "Must-Have", "reasoning": "core to the experience"}', 40)
     pd = PersonaDecider(PERSONAS, api_key="test", mode="fast")
@@ -22,7 +22,7 @@ def test_classify_fast_single(mock_llm):
     mock_llm.assert_called_once()
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_classify_fast_batch(mock_llm):
     mock_llm.return_value = (
         '[{"id": "f1", "choice": "Must-Have"}, {"id": "f2", "choice": "Delighter"}]', 60
@@ -41,7 +41,7 @@ def test_classify_fast_batch(mock_llm):
     mock_llm.assert_called_once()  # batch = 1 call regardless of item count
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_classify_fast_batch_missing_id_uses_fallback(mock_llm):
     """If LLM omits an id from the response, fallback to first option."""
     mock_llm.return_value = ('[{"id": "f1", "choice": "Must-Have"}]', 40)

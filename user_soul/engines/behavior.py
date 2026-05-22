@@ -327,6 +327,7 @@ def _aggregate(
         metrics=results,
         key_findings=key_findings,
         adversarial_frictions=adversarial_frictions,
+        sessions=list(session_results),
         _metrics_list=metrics,
     )
 
@@ -526,6 +527,7 @@ class BehaviorEngine:
             values = _parse_session_output(raw, all_metrics)
             session_results.append(SessionResult(
                 scenario=ctx, narrative=raw, values=values,
+                agent_id=agent.agent_id,
             ))
 
         adversarial_results: list[SessionResult] = []
@@ -594,7 +596,8 @@ class BehaviorEngine:
                 raw = self._backend.text(prompt, max_tokens=800,
                                          temperature=1.0, model_tier="fast")
                 values = _parse_session_output(raw, metrics)
-                results.append(SessionResult(scenario=ctx, narrative=raw, values=values))
+                results.append(SessionResult(scenario=ctx, narrative=raw, values=values,
+                                             agent_id=agent.agent_id))
             return results
 
         sessions_a = _run_variant(product_a)

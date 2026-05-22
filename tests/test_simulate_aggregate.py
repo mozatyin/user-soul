@@ -1,8 +1,8 @@
 
 
 from unittest.mock import patch, MagicMock
-from mcv.simulator import PersonaSimulator, FeatureSignal, SimulationRun
-from mcv.scenarios import ScenarioContext
+from user_soul.simulator import PersonaSimulator, FeatureSignal, SimulationRun
+from user_soul.scenarios import ScenarioContext
 
 PERSONAS = [
     {"id": "p1", "name": "Alice", "description": "Habituer",

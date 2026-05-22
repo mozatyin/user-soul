@@ -5,10 +5,10 @@ import re
 import random
 from dataclasses import dataclass, field
 
-from mcv.scenarios import ScenarioContext
-from mcv.scenarios import random_context_for_domain as _random_context_for_domain
-from mcv.schema_extractor import EvaluationMetric
-from mcv.domain_configs import DomainConfig
+from user_soul.scenarios import ScenarioContext
+from user_soul.scenarios import random_context_for_domain as _random_context_for_domain
+from user_soul.schema_extractor import EvaluationMetric
+from user_soul.domain_configs import DomainConfig
 
 
 @dataclass
@@ -118,7 +118,7 @@ class UserSimulator:
         if locked_metrics is not None:
             self._metrics = locked_metrics
         else:
-            from mcv.schema_extractor import extract_evaluation_schema
+            from user_soul.schema_extractor import extract_evaluation_schema
             self._metrics = extract_evaluation_schema(goal or "", self.api_key)
         return self
 
@@ -140,7 +140,7 @@ class UserSimulator:
         if locked_metrics is not None:
             self._metrics = locked_metrics
         else:
-            from mcv.schema_extractor import extract_evaluation_schema
+            from user_soul.schema_extractor import extract_evaluation_schema
             self._metrics = extract_evaluation_schema(goal or "", self.api_key)
         return self
 
@@ -148,9 +148,9 @@ class UserSimulator:
         """Run N independent sessions at temperature=1.0. Returns self for chaining."""
         if not self._product:
             raise RuntimeError("call prepare() before simulate()")
-        import mcv.core as _core
+        import user_soul.core as _core
 
-        from mcv.behavioral_framework import (
+        from user_soul.behavioral_framework import (
             BEHAVIORAL_FRAMEWORK_SECTION, ADVERSARIAL_PERSONA_SECTION,
             BEHAVIORAL_METRICS, COGNITIVE_BUDGETS,
         )
@@ -158,7 +158,7 @@ class UserSimulator:
         # Inject behavioral metrics if framework is active and metrics not already present
         if self.use_behavioral_framework:
             existing_names = {m.name for m in self._metrics}
-            from mcv.schema_extractor import EvaluationMetric as _EM
+            from user_soul.schema_extractor import EvaluationMetric as _EM
             for bname, btype, bquestion in BEHAVIORAL_METRICS:
                 if bname not in existing_names:
                     self._metrics.append(_EM(bname, btype, bquestion))
@@ -240,7 +240,7 @@ class UserSimulator:
 
     def report(self) -> "SimulationReport":
         """Aggregate session results into SimulationReport."""
-        from mcv.report import aggregate
+        from user_soul.report import aggregate
         return aggregate(
             self._session_results,
             self._metrics,
@@ -265,13 +265,13 @@ class UserSimulator:
         Both variants receive identical ScenarioContexts so deltas reflect
         product differences only, not context randomness.
         """
-        from mcv.report import aggregate, _compute_compare
+        from user_soul.report import aggregate, _compute_compare
 
         # Resolve metrics once (shared across both variants)
         if locked_metrics is not None:
             metrics = locked_metrics
         else:
-            from mcv.schema_extractor import extract_evaluation_schema
+            from user_soul.schema_extractor import extract_evaluation_schema
             metrics = extract_evaluation_schema(goal or "", self.api_key)
 
         # Pre-generate N shared scenario contexts (same seeds for both variants)
@@ -284,7 +284,7 @@ class UserSimulator:
             for i in range(n_runs)
         ]
 
-        import mcv.core as _core
+        import user_soul.core as _core
 
         def _run_variant(product: str) -> list[SessionResult]:
             results = []

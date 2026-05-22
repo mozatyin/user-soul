@@ -7,7 +7,7 @@ import json
 import time
 from pathlib import Path
 
-from mcv.simulator import FeatureSignal
+from user_soul.simulator import FeatureSignal
 
 _CACHE_FILE = "simulation_cache.json"
 _META_FILE = "simulation_meta.json"

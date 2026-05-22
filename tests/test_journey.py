@@ -2,8 +2,8 @@
 from __future__ import annotations
 import pytest
 from unittest.mock import patch, MagicMock
-from mcv.journey import JourneyReport, simulate_journey, _parse_step_output, _normalise_screens
-from mcv.gate_ledger import GateLedger
+from user_soul.journey import JourneyReport, simulate_journey, _parse_step_output, _normalise_screens
+from user_soul.gate_ledger import GateLedger
 
 
 # ── JourneyReport properties ───────────────────────────────────────────────
@@ -96,7 +96,7 @@ FLOW = ["home", "treasure", "collect"]
 
 def test_all_complete():
     pool = [_mock_agent() for _ in range(3)]
-    with patch("mcv.core._llm_call", return_value=("proceed: yes\nreason: ok\nfogg_issue: none", {})):
+    with patch("user_soul.core._llm_call", return_value=("proceed: yes\nreason: ok\nfogg_issue: none", {})):
         r = simulate_journey(SCREENS, FLOW, pool, api_key="key", n_personas=3)
     assert r.completion_rate == 1.0
     assert r.passes_gate is True
@@ -105,7 +105,7 @@ def test_all_complete():
 
 def test_all_drop_first_screen():
     pool = [_mock_agent() for _ in range(3)]
-    with patch("mcv.core._llm_call", return_value=("proceed: no\nreason: confused\nfogg_issue: ability", {})):
+    with patch("user_soul.core._llm_call", return_value=("proceed: no\nreason: confused\nfogg_issue: ability", {})):
         r = simulate_journey(SCREENS, FLOW, pool, api_key="key", n_personas=3)
     assert r.completion_rate == 0.0
     assert r.drop_off_by_screen.get("home", 0) == 3
@@ -119,7 +119,7 @@ def test_architecture_block_no_llm_call():
         {"screen_id": "nowhere", "navigates_to": [],       "description": "Dead end"},
     ]
     pool = [_mock_agent()]
-    with patch("mcv.core._llm_call") as mock_llm:
+    with patch("user_soul.core._llm_call") as mock_llm:
         r = simulate_journey(screens, ["home", "nowhere"], pool, api_key="key", n_personas=1)
     mock_llm.assert_not_called()
     assert r.completion_rate == 0.0
@@ -142,7 +142,7 @@ def test_partial_completion():
         ("proceed: yes\nreason: ok\nfogg_issue: none", {}),  # winner2 step1
         ("proceed: yes\nreason: ok\nfogg_issue: none", {}),  # winner2 step2
     ]
-    with patch("mcv.core._llm_call", side_effect=responses):
+    with patch("user_soul.core._llm_call", side_effect=responses):
         r = simulate_journey(SCREENS, FLOW, pool, api_key="key", n_personas=3)
     assert r.personas_completed == 2
     assert abs(r.completion_rate - 2/3) < 0.01
@@ -151,7 +151,7 @@ def test_partial_completion():
 def test_dict_screens_format():
     screens_dict = {s["screen_id"]: s for s in SCREENS}
     pool = [_mock_agent()]
-    with patch("mcv.core._llm_call", return_value=("proceed: yes\nreason: ok\nfogg_issue: none", {})):
+    with patch("user_soul.core._llm_call", return_value=("proceed: yes\nreason: ok\nfogg_issue: none", {})):
         r = simulate_journey(screens_dict, FLOW, pool, api_key="key", n_personas=1)
     assert r.completion_rate == 1.0
 

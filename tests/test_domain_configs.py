@@ -3,8 +3,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch as _patch
 
-from mcv.domain_configs import DomainConfig, GameDomainConfig, AppDomainConfig, WebDomainConfig, build_domain_config
-from mcv.scenarios import random_context_for_domain, ScenarioContext
+from user_soul.domain_configs import DomainConfig, GameDomainConfig, AppDomainConfig, WebDomainConfig, build_domain_config
+from user_soul.scenarios import random_context_for_domain, ScenarioContext
 
 
 def test_game_domain_config_fields():
@@ -50,7 +50,7 @@ def test_random_context_for_domain_uses_config_options():
 
 
 def test_random_context_for_domain_fallback_when_no_config():
-    from mcv.scenarios import ScenarioContext
+    from user_soul.scenarios import ScenarioContext
     ctx = random_context_for_domain(role=None, domain_config=None)
     assert isinstance(ctx, ScenarioContext)
 
@@ -82,7 +82,7 @@ _MOCK_RESPONSE = _json.dumps({
 
 
 def test_build_domain_config_returns_domain_config():
-    with _patch("mcv.core._llm_call") as mock_llm:
+    with _patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = (_MOCK_RESPONSE, 300)
         cfg = build_domain_config("电商 app，用户在这里浏览和购买商品", api_key="test")
     assert isinstance(cfg, DomainConfig)
@@ -94,7 +94,7 @@ def test_build_domain_config_returns_domain_config():
 def test_build_domain_config_caches_to_file():
     with tempfile.TemporaryDirectory() as tmp:
         cache = Path(tmp) / "domain_config.json"
-        with _patch("mcv.core._llm_call") as mock_llm:
+        with _patch("user_soul.core._llm_call") as mock_llm:
             mock_llm.return_value = (_MOCK_RESPONSE, 300)
             cfg1 = build_domain_config("电商 app", api_key="test", cache_path=cache)
             cfg2 = build_domain_config("电商 app", api_key="test", cache_path=cache)
@@ -104,7 +104,7 @@ def test_build_domain_config_caches_to_file():
 
 
 def test_build_domain_config_fallback_on_bad_json():
-    with _patch("mcv.core._llm_call") as mock_llm:
+    with _patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("not valid json at all", 50)
         cfg = build_domain_config("some app", api_key="test")
     assert isinstance(cfg, DomainConfig)

@@ -1,7 +1,7 @@
 
 
-from mcv.simulator import SimulationRun, FeatureSignal, _derive_kano, _derive_aarrr
-from mcv.scenarios import ScenarioContext
+from user_soul.simulator import SimulationRun, FeatureSignal, _derive_kano, _derive_aarrr
+from user_soul.scenarios import ScenarioContext
 
 
 def test_simulation_run_fields():

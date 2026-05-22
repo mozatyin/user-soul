@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from mcv.core import Persona, _llm_call
+from user_soul.core import Persona, _llm_call
 
 
 def _generate_personas(

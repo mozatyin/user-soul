@@ -1,13 +1,13 @@
 
 from unittest.mock import patch as _patch
 
-from mcv.report import (
+from user_soul.report import (
     _aggregate_bool, _aggregate_scale, _aggregate_text,
     aggregate, SimulationReport, MetricResult,
 )
-from mcv.schema_extractor import EvaluationMetric
-from mcv.user_simulator import SessionResult
-from mcv.scenarios import ScenarioContext
+from user_soul.schema_extractor import EvaluationMetric
+from user_soul.user_simulator import SessionResult
+from user_soul.scenarios import ScenarioContext
 
 
 CTX = ScenarioContext("evening", "calm", 1, "curiosity")
@@ -125,7 +125,7 @@ def test_aggregate_auto_key_findings():
         SessionResult(CTX, "叙述", {"ret": "no",  "eng": "3"}),
         SessionResult(CTX, "叙述", {"ret": "yes", "eng": "5"}),
     ]
-    with _patch("mcv.core._llm_call") as mock_llm:
+    with _patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("Day-1 留存率为 67%，参与度均分 4.0。", 80)
         report = aggregate(sessions, metrics, "玩家", "游戏", api_key="test")
     mock_llm.assert_called()
@@ -142,7 +142,7 @@ def test_aggregate_no_key_findings_without_api_key():
 def test_aggregate_no_key_findings_with_single_metric():
     metrics = [EvaluationMetric("ret", "bool", "?")]
     sessions = [SessionResult(CTX, "叙述", {"ret": "yes"})]
-    with _patch("mcv.core._llm_call") as mock_llm:
+    with _patch("user_soul.core._llm_call") as mock_llm:
         mock_llm.return_value = ("some findings", 50)
         report = aggregate(sessions, metrics, "玩家", "游戏", api_key="test")
     mock_llm.assert_not_called()
@@ -183,7 +183,7 @@ def test_simulation_report_locked_schema():
     assert schema[0]["question"] == "回来吗？"
 
 
-from mcv.report import FeatureAAR, CoherenceReport
+from user_soul.report import FeatureAAR, CoherenceReport
 
 def test_feature_aar_fields():
     f = FeatureAAR(

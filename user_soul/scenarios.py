@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mcv.domain_configs import DomainConfig
+    from user_soul.domain_configs import DomainConfig
 
 
 @dataclass

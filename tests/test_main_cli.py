@@ -2,7 +2,7 @@ import json, tempfile
 
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from mcv.simulator import FeatureSignal
+from user_soul.simulator import FeatureSignal
 
 
 def _make_signal(fid):
@@ -15,7 +15,7 @@ def _make_signal(fid):
 
 
 def test_trigger_background_simulation_spawns_subprocess():
-    from mcv.__main__ import trigger_background_simulation
+    from user_soul.__main__ import trigger_background_simulation
     with patch("subprocess.Popen") as mock_popen:
         trigger_background_simulation(
             state_dir=Path("/tmp/test_state"),
@@ -30,7 +30,7 @@ def test_trigger_background_simulation_spawns_subprocess():
 
 def test_run_simulation_writes_cache():
     """run_simulation() executes simulation and writes cache."""
-    from mcv.__main__ import run_simulation
+    from user_soul.__main__ import run_simulation
     with tempfile.TemporaryDirectory() as tmp:
         state_dir = Path(tmp)
         # Write required input files
@@ -41,9 +41,9 @@ def test_run_simulation_writes_cache():
         (state_dir / "features_for_simulation.json").write_text(json.dumps(features))
         (state_dir / "personas.json").write_text(json.dumps(personas))
 
-        with patch("mcv.simulator.PersonaSimulator._simulate_one") as mock_sim:
-            from mcv.scenarios import ScenarioContext
-            from mcv.simulator import SimulationRun
+        with patch("user_soul.simulator.PersonaSimulator._simulate_one") as mock_sim:
+            from user_soul.scenarios import ScenarioContext
+            from user_soul.simulator import SimulationRun
             mock_sim.return_value = SimulationRun(
                 persona_id="p1",
                 context=ScenarioContext("evening", "calm", 14, "habit"),

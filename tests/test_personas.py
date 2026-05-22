@@ -3,7 +3,7 @@ import tempfile
 
 from pathlib import Path
 from unittest.mock import patch
-from mcv import Persona, load_or_generate
+from user_soul import Persona, load_or_generate
 
 MOCK_RESPONSE = json.dumps([
     {"id": "p1", "name": "Mei", "cohort": "Chinese women 25-35",
@@ -15,7 +15,7 @@ MOCK_RESPONSE = json.dumps([
 ])
 
 
-@patch("mcv.personas._llm_call")
+@patch("user_soul.personas._llm_call")
 def test_generates_personas(mock_llm):
     mock_llm.return_value = (MOCK_RESPONSE, 200)
     with tempfile.TemporaryDirectory() as tmp:
@@ -34,7 +34,7 @@ def test_generates_personas(mock_llm):
     assert "self-growth" in personas[0].motivations
 
 
-@patch("mcv.personas._llm_call")
+@patch("user_soul.personas._llm_call")
 def test_caches_to_disk(mock_llm):
     mock_llm.return_value = (MOCK_RESPONSE, 200)
     with tempfile.TemporaryDirectory() as tmp:
@@ -46,7 +46,7 @@ def test_caches_to_disk(mock_llm):
         assert data[0]["name"] == "Mei"
 
 
-@patch("mcv.personas._llm_call")
+@patch("user_soul.personas._llm_call")
 def test_loads_from_cache(mock_llm):
     mock_llm.return_value = (MOCK_RESPONSE, 200)
     with tempfile.TemporaryDirectory() as tmp:
@@ -60,7 +60,7 @@ def test_loads_from_cache(mock_llm):
         assert len(personas) == 2
 
 
-@patch("mcv.personas._llm_call")
+@patch("user_soul.personas._llm_call")
 def test_regenerates_when_cache_has_fewer_than_n(mock_llm):
     """If cached file has fewer personas than requested, regenerate."""
     mock_llm.return_value = (MOCK_RESPONSE, 200)

@@ -1,8 +1,8 @@
 import json, tempfile
 
 from pathlib import Path
-from mcv.cache import save_simulation_cache, load_simulation_cache, _feature_hash
-from mcv.simulator import FeatureSignal
+from user_soul.cache import save_simulation_cache, load_simulation_cache, _feature_hash
+from user_soul.simulator import FeatureSignal
 
 FEATURES = [{"id": "f1", "name": "check-in"}, {"id": "f2", "name": "star map"}]
 

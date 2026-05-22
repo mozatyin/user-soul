@@ -7,7 +7,7 @@ API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 def test_validate_coherence_detects_missing_enabler_rule_based():
     """Ludo selected without Invite Friends → rule-based detects gap, no LLM needed."""
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key="dummy")  # no API key needed for rule-based pass
     selected = [{"id": "ludo", "name": "Ludo", "description": "multiplayer board game"}]
     report = client.validate_coherence(
@@ -24,7 +24,7 @@ def test_validate_coherence_detects_missing_enabler_with_reinstate():
     """Ludo selected, invite_friends dropped → reinstate_recommendations includes invite_friends."""
     if not API_KEY:
         pytest.skip("no ANTHROPIC_API_KEY")
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key=API_KEY)
     selected = [{"id": "ludo", "name": "Ludo", "description": "multiplayer board game"}]
     dropped  = [{"id": "invite_friends", "name": "Invite Friends",
@@ -40,7 +40,7 @@ def test_validate_coherence_detects_missing_enabler_with_reinstate():
 
 def test_validate_coherence_coherent_when_enabler_present():
     """Both ludo and invite_friends selected → no gap."""
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key="dummy")
     selected = [
         {"id": "ludo",           "name": "Ludo",           "description": "multiplayer board game"},
@@ -56,7 +56,7 @@ def test_validate_coherence_coherent_when_enabler_present():
 
 def test_validate_coherence_empty_selected():
     """Empty feature set → coherent (no dependency violations on empty set), no crash."""
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key="dummy")
     report = client.validate_coherence(
         product_description="any app", selected_features=[]
@@ -68,7 +68,7 @@ def test_validate_coherence_empty_selected():
 
 def test_validate_coherence_no_social_features():
     """Non-social features → coherent (no dependency violations)."""
-    from mcv.client import MCVClient
+    from user_soul.voter import MCVClient
     client = MCVClient(api_key="dummy")
     selected = [
         {"id": "daily_tasks", "name": "Daily Tasks",   "description": "daily quest checklist"},

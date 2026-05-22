@@ -8,8 +8,8 @@ import statistics
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from mcv.schema_extractor import EvaluationMetric
-from mcv.user_simulator import SessionResult
+from user_soul.schema_extractor import EvaluationMetric
+from user_soul.user_simulator import SessionResult
 
 
 @dataclass
@@ -262,7 +262,7 @@ def _aggregate_text(values: list[str], api_key: str | None = None) -> MetricResu
     samples = values[:10]
     themes: list[str] = []
     if api_key and len(values) >= 3:
-        import mcv.core as _core
+        import user_soul.core as _core
         joined = "\n".join(f"- {v}" for v in values[:30])
         prompt = (
             f"以下是用户反馈列表：\n{joined}\n\n"
@@ -286,7 +286,7 @@ def _generate_key_findings(
     api_key: str,
 ) -> str:
     """Generate 2-3 sentence product insight from aggregated metrics. One Haiku call."""
-    import mcv.core as _core
+    import user_soul.core as _core
     lines = []
     for mr in metrics.values():
         if mr.type == "bool" and mr.true_rate is not None \

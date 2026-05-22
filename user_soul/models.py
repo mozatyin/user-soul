@@ -73,6 +73,7 @@ class SessionResult:
     scenario: Any
     narrative: str
     values: dict[str, str] = field(default_factory=dict)
+    agent_id: str = ""
 
 
 @dataclass
@@ -98,6 +99,7 @@ class SimulationReport:
     metrics: dict[str, MetricResult]
     key_findings: str = ""
     adversarial_frictions: list[str] = field(default_factory=list)
+    sessions: list = field(default_factory=list)
     _metrics_list: list = field(default_factory=list, repr=False, compare=False)
 
     @property
@@ -371,6 +373,22 @@ class GradedPlaytestFeedback:
 
 
 # ---------------------------------------------------------------------------
+# SmokePlaytestResult — Mode A lightweight bug scan
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SmokePlaytestResult:
+    bug_count: int
+    bug_list: list[PlaytestIssue] = field(default_factory=list)
+    personas_completed: int = 0
+    personas_total: int = 0
+    raw_summary: str = ""
+
+    @property
+    def has_blockers(self) -> bool:
+        return any(b.severity == "P0" for b in self.bug_list)
+
+
 # ActionSpec — structured work item routed from PM-Soul to actors
 # ---------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 import os
 
 from unittest.mock import patch
-from mcv import Persona, PersonaDecider
+from user_soul import Persona, PersonaDecider
 
 PERSONAS = [Persona(id="p1", name="Alice", description="test",
                     cohort="18-30", motivations=[], pain_points=[])]

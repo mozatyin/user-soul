@@ -1,7 +1,7 @@
 
 
 from unittest.mock import patch, call
-from mcv import Persona, PersonaDecider
+from user_soul import Persona, PersonaDecider
 
 
 def _make_personas(n):
@@ -10,7 +10,7 @@ def _make_personas(n):
             for i in range(n)]
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validated_classify_calls_each_persona(mock_llm):
     """validated mode calls _llm_call once per persona."""
     mock_llm.return_value = ('{"choice": "Must-Have", "reasoning": "great"}', 40)
@@ -19,7 +19,7 @@ def test_validated_classify_calls_each_persona(mock_llm):
     assert mock_llm.call_count == 3
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validated_classify_aggregates_votes(mock_llm):
     """confidence = fraction of personas that voted for the majority."""
     responses = [
@@ -36,7 +36,7 @@ def test_validated_classify_aggregates_votes(mock_llm):
     assert abs(result.distribution["Delighter"] - 1/3) < 0.01
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validated_score_aggregates_avg(mock_llm):
     """value = mean of per-persona scores."""
     responses = [('{"score": 6.0}', 30), ('{"score": 8.0}', 30), ('{"score": 7.0}', 30)]
@@ -46,7 +46,7 @@ def test_validated_score_aggregates_avg(mock_llm):
     assert abs(result.value - 7.0) < 0.01  # mean of 6, 8, 7
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validated_batch_one_call_per_persona(mock_llm):
     """batch of 5 items + 3 personas = exactly 3 LLM calls (not 15)."""
     mock_llm.return_value = (
@@ -61,7 +61,7 @@ def test_validated_batch_one_call_per_persona(mock_llm):
     assert len(results) == 5
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validated_validate(mock_llm):
     responses = [('{"result": true}', 30), ('{"result": false}', 30), ('{"result": true}', 30)]
     mock_llm.side_effect = responses
@@ -71,7 +71,7 @@ def test_validated_validate(mock_llm):
     assert abs(result.confidence - 2/3) < 0.01
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validated_score_confidence_high_when_agreement(mock_llm):
     """High agreement across personas → confidence close to 1.0."""
     responses = [('{"score": 9.0}', 30), ('{"score": 9.1}', 30), ('{"score": 8.9}', 30)]
@@ -81,7 +81,7 @@ def test_validated_score_confidence_high_when_agreement(mock_llm):
     assert result.confidence > 0.9  # very tight agreement
 
 
-@patch("mcv.core._llm_call")
+@patch("user_soul.core._llm_call")
 def test_validated_tokens_summed(mock_llm):
     """tokens_used should sum across all persona calls."""
     mock_llm.return_value = ('{"result": true}', 50)

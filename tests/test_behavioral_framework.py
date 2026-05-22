@@ -1,14 +1,14 @@
 """Tests for mcv.behavioral_framework constants and their integration with report.py."""
 from __future__ import annotations
 import pytest
-from mcv.behavioral_framework import (
+from user_soul.behavioral_framework import (
     SYCOPHANCY_DEFLATOR,
     BEHAVIORAL_FRAMEWORK_SECTION,
     ADVERSARIAL_PERSONA_SECTION,
     BEHAVIORAL_METRICS,
     COGNITIVE_BUDGETS,
 )
-from mcv.report import SimulationReport, MetricResult
+from user_soul.report import SimulationReport, MetricResult
 
 
 # ---------------------------------------------------------------------------

@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
 import sys
 from typing import Any
 
 from user_soul.backend import LLMBackend
-from user_soul.models import AgentProfile, PlaytestFeedback, PlaytestIssue, GradedPlaytestFeedback
+from user_soul.models import AgentProfile, PlaytestFeedback, PlaytestIssue, GradedPlaytestFeedback, SmokePlaytestResult
 from user_soul.game_knowledge import (
     GameKnowledge, KnowledgeTier, TierResult, DifferentialDiagnosis,
     brief_for_tier, distribute_personas_across_tiers, minimum_personas_for_graded_test,
@@ -21,7 +22,7 @@ from user_soul.game_knowledge import (
 
 
 def _ensure_code_soul_importable() -> None:
-    code_soul_path = "/Users/mozat/code-soul"
+    code_soul_path = os.environ.get("CODE_SOUL_PATH", "/Users/mozat/code-soul")
     if code_soul_path not in sys.path:
         sys.path.insert(0, code_soul_path)
     import types
@@ -116,6 +117,39 @@ def run_user_playtest(
     )
 
     return _translate_friction_report(friction_report, personas, backend)
+
+
+def run_smoke_playtest(
+    html_path: str,
+    personas: list[AgentProfile],
+    backend: LLMBackend,
+    *,
+    k_turns: int = 8,
+    on_progress=None,
+    game_rules: str = "",
+) -> SmokePlaytestResult:
+    """Mode A: lightweight bug scan with 1 persona, short session.
+
+    Only counts bugs — no experience scoring. Output should converge
+    with ELTM bug count across iterations.
+    """
+    scan_personas = personas[:1]
+    feedback = run_user_playtest(
+        html_path=html_path,
+        personas=scan_personas,
+        backend=backend,
+        k_turns=k_turns,
+        on_progress=on_progress,
+        game_rules=game_rules,
+    )
+    bugs_only = [i for i in feedback.issues if i.category == "code_bug"]
+    return SmokePlaytestResult(
+        bug_count=len(bugs_only),
+        bug_list=bugs_only,
+        personas_completed=feedback.personas_completed,
+        personas_total=feedback.personas_total,
+        raw_summary=feedback.raw_summary,
+    )
 
 
 def _translate_friction_report(
