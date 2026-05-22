@@ -3,6 +3,7 @@ from user_soul.client import UserSoulClient
 from user_soul.backend import LLMBackend
 from user_soul.feature_filter import FeatureFilter, FeatureFilterReport, ScoredFeature
 from user_soul.ab_validator import ABValidator, ABValidationReport, PDCAAction
+from user_soul.eltm_adapter import extract_features, extract_benchmark_name, build_product_description
 from user_soul.models import (
     AgentProfile, EvaluationMetric, PersonaStructure,
     SimulationReport, CompareReport, JourneyReport,
@@ -74,4 +75,6 @@ __all__ = [
     "FeatureFilter", "FeatureFilterReport", "ScoredFeature",
     # Phase 8.8 — AB Validator vs Reference
     "ABValidator", "ABValidationReport", "PDCAAction",
+    # ELTM Adapter — build_core() output → FeatureFilter input
+    "extract_features", "extract_benchmark_name", "build_product_description",
 ]
