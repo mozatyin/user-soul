@@ -1,8 +1,8 @@
 """Tests for the TriSoul unified message protocol (v2 — dict-based)."""
 import sys
-sys.path.insert(0, "/Users/mozat/mcv")
+sys.path.insert(0, "/Users/mozat/user-soul")
 
-from trisoul_protocol import (
+from user_soul.trisoul_protocol import (
     Actor, Severity,
     TriSoulMessage,
     make_dict, make_reply, check_acknowledged,

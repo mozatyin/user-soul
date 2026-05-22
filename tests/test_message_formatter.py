@@ -1,6 +1,6 @@
 """Tests for User-Soul message formatter (v2 — dict-based protocol)."""
 import sys
-sys.path.insert(0, "/Users/mozat/mcv")
+sys.path.insert(0, "/Users/mozat/user-soul")
 
 from user_soul.message_formatter import (
     format_action_as_dict,

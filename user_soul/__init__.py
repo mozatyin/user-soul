@@ -1,6 +1,8 @@
 """User-Soul — user advocate across the entire product lifecycle."""
 from user_soul.client import UserSoulClient
 from user_soul.backend import LLMBackend
+from user_soul.feature_filter import FeatureFilter, FeatureFilterReport, ScoredFeature
+from user_soul.ab_validator import ABValidator, ABValidationReport, PDCAAction
 from user_soul.models import (
     AgentProfile, EvaluationMetric, PersonaStructure,
     SimulationReport, CompareReport, JourneyReport,
@@ -68,4 +70,8 @@ __all__ = [
     "PersonaPool", "PopulationResearcher",
     "SYCOPHANCY_DEFLATOR", "BEHAVIORAL_FRAMEWORK_SECTION",
     "ADVERSARIAL_PERSONA_SECTION", "BEHAVIORAL_METRICS", "COGNITIVE_BUDGETS",
+    # Phase 0.7 — Feature Intelligence Filter
+    "FeatureFilter", "FeatureFilterReport", "ScoredFeature",
+    # Phase 8.8 — AB Validator vs Reference
+    "ABValidator", "ABValidationReport", "PDCAAction",
 ]
