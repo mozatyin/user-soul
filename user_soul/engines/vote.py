@@ -153,7 +153,7 @@ class VoteEngine:
             features_block=features_block,
         )
 
-        raw = self._backend.text(prompt, max_tokens=3000, model_tier="smart")
+        raw = self._backend.text(prompt, max_tokens=8000, model_tier="smart")
 
         items = _safe_json_arr(raw)
         items_by_id = {

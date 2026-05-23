@@ -13,6 +13,20 @@ from user_soul.models import (
     GradedPlaytestFeedback, ActionSpec,
 )
 from user_soul.playtest_bridge import extract_game_rules, run_graded_playtest
+# Statsig-compatible real-data interfaces
+from user_soul.statsig_user import StatsigUser, StatsigOptions
+from user_soul.event_logger import EventLogger, Event, AAARREventMap
+from user_soul.experiment_manager import (
+    ExperimentManager, ExperimentConfig, ExperimentVariant,
+    FeatureGateConfig, HoldoutConfig, LayerConfig,
+)
+from user_soul.dynamic_config import DynamicConfig
+from user_soul.pulse import PulseComputer, PulseReport, PulseMetric
+from user_soul.data_source import (
+    SimulatedDataSource, RealDataSource, HybridDataSource, create_data_source,
+)
+# ELTM pipeline integration hooks
+from user_soul.eltm_integration import pre_build_filter, post_build_validate, FilterResult, ValidationResult
 from user_soul.game_knowledge import (
     GameKnowledge, KnowledgeTier, brief_for_tier,
     DifferentialDiagnosis, TierResult, DiagnosisItem, DiagnosisCategory,
@@ -77,4 +91,12 @@ __all__ = [
     "ABValidator", "ABValidationReport", "PDCAAction",
     # ELTM Adapter — build_core() output → FeatureFilter input
     "extract_features", "extract_benchmark_name", "build_product_description",
+    # Statsig-compatible real-data interfaces
+    "StatsigUser", "StatsigOptions",
+    "EventLogger", "Event", "AAARREventMap",
+    "ExperimentManager", "ExperimentConfig", "ExperimentVariant",
+    "FeatureGateConfig", "HoldoutConfig", "LayerConfig",
+    "DynamicConfig",
+    "PulseComputer", "PulseReport", "PulseMetric",
+    "SimulatedDataSource", "RealDataSource", "HybridDataSource", "create_data_source",
 ]

@@ -76,8 +76,12 @@ def _normalize_features(raw: list[dict]) -> list[dict]:
     normalized = []
     for idx, item in enumerate(raw):
         name = item.get("name") or f"feature_{idx}"
+        # Prefer existing id; fall back to slug-based generated id
+        existing_id = item.get("id") or ""
+        slug = (_slug(existing_id) if existing_id else "") or _slug(name) or f"f{idx:03d}"
+        fid = existing_id if (existing_id and existing_id.replace("-", "").replace("_", "").isascii()) else f"{idx:03d}_{slug}"
         normalized.append({
-            "id": f"{idx:03d}_{_slug(name)}",
+            "id": fid,
             "name": name,
             "description": item.get("description") or "",
             "category": item.get("category") or "general",
@@ -177,9 +181,11 @@ def _classify(score: float) -> str:
 
 class FeatureFilter:
 
-    def __init__(self, backend: LLMBackend):
+    def __init__(self, backend: LLMBackend | None = None, data_source=None):
         self._backend = backend
-        self._vote = VoteEngine(backend)
+        self._vote = VoteEngine(backend) if backend else None
+        # data_source overrides VoteEngine when provided (real or hybrid mode)
+        self._data_source = data_source
 
     def filter(
         self,
@@ -208,15 +214,20 @@ class FeatureFilter:
         if archetypes is None:
             archetypes = _auto_archetypes(self._backend, product_description, target_segment)
 
-        # 3. Batch AARRR scoring
+        # 3. Batch AARRR scoring — use data_source if provided, else VoteEngine
         all_aarrr: list[FeatureAAR] = []
-        if len(features) <= _BATCH_SIZE:
-            all_aarrr = self._vote.aarrr(product_description, features, archetypes)
-        else:
-            for i in range(0, len(features), _BATCH_SIZE):
-                batch = features[i: i + _BATCH_SIZE]
-                batch_aarrr = self._vote.aarrr(product_description, batch, archetypes)
-                all_aarrr.extend(batch_aarrr)
+        if self._data_source is not None:
+            all_aarrr = self._data_source.get_aarrr_batch(
+                features, product_description, target_segment, archetypes
+            )
+        elif self._vote is not None:
+            if len(features) <= _BATCH_SIZE:
+                all_aarrr = self._vote.aarrr(product_description, features, archetypes)
+            else:
+                for i in range(0, len(features), _BATCH_SIZE):
+                    batch = features[i: i + _BATCH_SIZE]
+                    batch_aarrr = self._vote.aarrr(product_description, batch, archetypes)
+                    all_aarrr.extend(batch_aarrr)
 
         # 4. Build ScoredFeature list
         aarrr_by_id = {a.feature_id: a for a in all_aarrr}
