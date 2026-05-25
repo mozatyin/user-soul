@@ -105,7 +105,7 @@ def _llm_call(
     model: str | None = None,
 ) -> tuple[str, int]:
     """Single LLM call → (response_text, tokens_used)."""
-    import anthropic
+    from elm.llm_client import make_client
     _model = model or _model_name(api_key)
     kwargs: dict = dict(
         model=_model,
@@ -114,17 +114,7 @@ def _llm_call(
     )
     if temperature > 0.0:
         kwargs["temperature"] = temperature
-    if api_key.startswith("sk-or-"):
-        import httpx
-        _local = _resolve_local_address("104.18.3.115")
-        _transport = httpx.HTTPTransport(local_address=_local) if _local else None
-        client = anthropic.Anthropic(
-            api_key=api_key,
-            base_url="https://openrouter.ai/api",
-            http_client=httpx.Client(transport=_transport) if _transport else None,
-        )
-    else:
-        client = anthropic.Anthropic(api_key=api_key)
+    client = make_client(api_key)
     resp = client.messages.create(**kwargs)
     text = resp.content[0].text if resp.content else ""
     tokens = (resp.usage.input_tokens or 0) + (resp.usage.output_tokens or 0)

@@ -54,17 +54,10 @@ class AnthropicBackend:
         from eltm.config import _env_model_to_anthropic
         return _env_model_to_anthropic(env_model)
 
-    def _make_client(self) -> anthropic.Anthropic:
-        if self._api_key.startswith("sk-or-"):
-            import httpx
-            _local = _resolve_local_address("104.18.3.115")
-            _transport = httpx.HTTPTransport(local_address=_local) if _local else None
-            return anthropic.Anthropic(
-                api_key=self._api_key,
-                base_url="https://openrouter.ai/api",
-                http_client=httpx.Client(transport=_transport) if _transport else None,
-            )
-        return anthropic.Anthropic(api_key=self._api_key)
+    def _make_client(self):
+        """Use eltm.llm_client.make_client for response normalization."""
+        from eltm.llm_client import make_client
+        return make_client(self._api_key)
 
     def text(self, prompt: str, *, max_tokens: int = 512,
              temperature: float = 0.0, model_tier: str = "fast") -> str:
