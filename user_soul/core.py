@@ -35,8 +35,12 @@ def _env_model(default_model: str) -> str:
 
 
 def _model_name(api_key: str) -> str:
-    """Pick model dynamically from ANTHROPIC_MODEL env var."""
-    return _env_model("claude-sonnet-4-6")
+    """Pick model dynamically from ANTHROPIC_MODEL env var with OR conversion."""
+    model = _env_model("claude-sonnet-4-6")
+    if api_key.startswith("sk-or-"):
+        from eltm.config import _env_model_to_or
+        return _env_model_to_or(model)
+    return model
 
 
 def _haiku_model(api_key: str) -> str:
