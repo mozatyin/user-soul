@@ -40,12 +40,8 @@ def _model_name(api_key: str) -> str:
 
 
 def _haiku_model(api_key: str) -> str:
-    """Haiku model ID — used for simulation (cheap, fast)."""
-    # If main model is deepseek/other, fall back to claude-haiku for cheap ops
-    m = _env_model("")
-    if m and not m.startswith("claude"):
-        return "claude-haiku-4-5-20251001"
-    return "claude-haiku-4-5-20251001"
+    """Model for simulation — same as main model from ANTHROPIC_MODEL env."""
+    return _model_name(api_key)
 
 
 # Module-level cache: probed once per process, reused across all _llm_call()s.

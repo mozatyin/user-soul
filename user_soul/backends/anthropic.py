@@ -46,8 +46,6 @@ class AnthropicBackend:
         self._api_key = api_key
 
     def _resolve_model(self, tier: str) -> str:
-        if tier == "fast":
-            return "claude-haiku-4-5-20251001"
         import os
         return os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").split("[")[0]
 
