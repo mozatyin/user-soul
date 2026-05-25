@@ -47,7 +47,12 @@ class AnthropicBackend:
 
     def _resolve_model(self, tier: str) -> str:
         import os
-        return os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").split("[")[0]
+        env_model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").split("[")[0]
+        if self._api_key.startswith("sk-or-"):
+            from eltm.config import _env_model_to_or
+            return _env_model_to_or(env_model)
+        from eltm.config import _env_model_to_anthropic
+        return _env_model_to_anthropic(env_model)
 
     def _make_client(self) -> anthropic.Anthropic:
         if self._api_key.startswith("sk-or-"):
