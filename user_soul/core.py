@@ -28,13 +28,23 @@ class DecisionResult:
     raw_votes: list[Any] = field(default_factory=list)   # per-persona values
 
 
+def _env_model(default_model: str) -> str:
+    """Read ANTHROPIC_MODEL env var, strip suffix like [1m], return model ID."""
+    import os
+    return os.environ.get("ANTHROPIC_MODEL", default_model).split("[")[0]
+
+
 def _model_name(api_key: str) -> str:
-    """Pick model. OpenRouter keys use openrouter base URL."""
-    return "claude-sonnet-4-20250514"
+    """Pick model dynamically from ANTHROPIC_MODEL env var."""
+    return _env_model("claude-sonnet-4-6")
 
 
 def _haiku_model(api_key: str) -> str:
     """Haiku model ID — used for simulation (cheap, fast)."""
+    # If main model is deepseek/other, fall back to claude-haiku for cheap ops
+    m = _env_model("")
+    if m and not m.startswith("claude"):
+        return "claude-haiku-4-5-20251001"
     return "claude-haiku-4-5-20251001"
 
 

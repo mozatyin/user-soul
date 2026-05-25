@@ -48,7 +48,8 @@ class AnthropicBackend:
     def _resolve_model(self, tier: str) -> str:
         if tier == "fast":
             return "claude-haiku-4-5-20251001"
-        return "claude-sonnet-4-20250514"
+        import os
+        return os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").split("[")[0]
 
     def _make_client(self) -> anthropic.Anthropic:
         if self._api_key.startswith("sk-or-"):
