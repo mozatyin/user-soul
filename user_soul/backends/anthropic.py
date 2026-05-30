@@ -47,7 +47,13 @@ class AnthropicBackend:
 
     def _resolve_model(self, tier: str) -> str:
         import os
-        env_model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").split("[")[0]
+        # fast tier: use USER_SOUL_MODEL or Sonnet (never burn Opus on persona simulation)
+        # smart/other: use ANTHROPIC_MODEL (main system model)
+        if tier == "fast":
+            env_model = os.environ.get("USER_SOUL_MODEL",
+                        os.environ.get("GAME_GEN_MODEL", "claude-sonnet-4-6")).split("[")[0]
+        else:
+            env_model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").split("[")[0]
         if self._api_key.startswith("sk-or-"):
             from eltm.config import _env_model_to_or
             return _env_model_to_or(env_model)
