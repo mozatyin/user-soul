@@ -54,15 +54,17 @@ def test_simulate_one_uses_temperature_1(mock_llm):
 
 
 @patch("user_soul.core._llm_call")
-def test_simulate_one_uses_haiku(mock_llm):
+def test_simulate_one_uses_resolved_model(mock_llm):
+    # Simulation routes through _haiku_model → _model_name, i.e. the resolved
+    # main model (Sonnet by default; configurable, never hardcoded Opus).
     mock_llm.return_value = (MOCK_RESPONSE, 400)
     sim = PersonaSimulator(PERSONAS, api_key="test")
     ctx = ScenarioContext("evening", "calm", 14, "habit")
     sim._simulate_one(PERSONAS[0], FEATURES, ctx)
     call_kwargs = mock_llm.call_args
     model_arg = call_kwargs[1].get("model") or (call_kwargs[0][4] if len(call_kwargs[0]) > 4 else None)
-    assert model_arg is not None and "haiku" in model_arg.lower(), \
-           f"Expected haiku model, got: {model_arg}"
+    assert model_arg is not None and "claude" in model_arg.lower(), \
+           f"Expected a resolved claude model, got: {model_arg}"
 
 
 @patch("user_soul.core._llm_call")

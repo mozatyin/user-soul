@@ -174,7 +174,7 @@ def post_build_validate(
     from user_soul.eltm_adapter import extract_benchmark_name, build_product_description
 
     backend = AnthropicBackend(api_key=api_key)
-    validator = ABValidator(backend)
+    validator = ABValidator(backend, api_key=api_key)
 
     # Build our product description from the fusion result
     our_prd = (
@@ -190,13 +190,29 @@ def post_build_validate(
         or "industry benchmark"
     )
 
-    msg = f"[user-soul 8.8] AB validate: our product vs {benchmark_name}"
+    # ABValidator.validate() requires a reference description + simulation context.
+    game_name = build_result.get("game_name") or "our product"
+    user_type = (
+        research_output.get("target_segment")
+        or build_result.get("target_segment")
+        or "general user"
+    )
+    goal = (
+        research_output.get("user_goal")
+        or f"try {game_name} and decide whether to keep using it"
+    )
+
+    msg = f"[user-soul 8.8] AB validate: {game_name} vs {benchmark_name}"
     print(msg, flush=True)
     if on_progress:
         on_progress(msg)
 
     report = validator.validate(
-        our_product_description=our_prd,
+        our_product=our_prd,
+        reference_product=f"{benchmark_name} (industry-leading competitor)",
+        user_type=user_type,
+        goal=goal,
+        our_label=game_name,
         reference_label=benchmark_name,
     )
 

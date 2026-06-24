@@ -1,13 +1,13 @@
 import os
 """Full loop: Playtest Checkers → PM-Soul routes → Fix → Re-test."""
 import sys, time
-sys.path.insert(0, "/Users/mozat/mcv")
+sys.path.insert(0, "/Users/mozat/user-soul")
 
 from user_soul.backends.anthropic import AnthropicBackend
 from user_soul.engines.persona import PersonaEngine
 from user_soul.playtest_bridge import run_user_playtest
 
-API_KEY = os.environ["OPENROUTER_API_KEY"]
+API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 HTML_PATH = "/Users/mozat/pm-soul/projects/checkers_test/v1/index.html"
 
 def on_progress(event):

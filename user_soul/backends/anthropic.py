@@ -45,6 +45,12 @@ class AnthropicBackend:
     def __init__(self, api_key: str):
         self._api_key = api_key
 
+    @property
+    def api_key(self) -> str:
+        """Public accessor — lets callers (e.g. UserSoulClient legacy-capability
+        delegation, ABValidator) recover the key without touching a private attr."""
+        return self._api_key
+
     def _resolve_model(self, tier: str) -> str:
         import os
         # fast tier: use USER_SOUL_MODEL or Sonnet (never burn Opus on persona simulation)

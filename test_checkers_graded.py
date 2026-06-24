@@ -1,7 +1,7 @@
 import os
 """End-to-end: Graded playtest on Checkers — verify full KGVT pipeline."""
 import sys, time, json
-sys.path.insert(0, "/Users/mozat/mcv")
+sys.path.insert(0, "/Users/mozat/user-soul")
 
 from user_soul.backends.anthropic import AnthropicBackend
 from user_soul.engines.persona import PersonaEngine
@@ -9,7 +9,7 @@ from user_soul.playtest_bridge import run_graded_playtest
 from user_soul.action_router import route_diagnosis, group_by_owner, format_action_summary
 from user_soul.game_knowledge import GameKnowledge, KnowledgeTier, brief_for_tier
 
-API_KEY = os.environ["OPENROUTER_API_KEY"]
+API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 HTML_PATH = "/Users/mozat/pm-soul/projects/checkers_test/v1/index.html"
 
 CHECKERS_GDD = {

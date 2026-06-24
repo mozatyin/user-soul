@@ -102,7 +102,8 @@ class UserSoulClient:
 
         Statsig docs: https://docs.statsig.com/server/pythonSDK#dynamic-config
         """
-        dc = DynamicConfig()
+        override = self._overrides.get(f"config:{config_name}")
+        dc = DynamicConfig(override) if override is not None else DynamicConfig()
         dc._name = config_name
         return dc
 
@@ -161,11 +162,6 @@ class UserSoulClient:
 
         Statsig SDK: config = statsig.get_config(user, "prices")
         """
-        override = self._overrides.get(f"config:{config_name}")
-        if override is not None:
-            dc = DynamicConfig(override)
-            dc._name = config_name
-            return dc
         return self.get_dynamic_config(user, config_name)
 
     def shutdown(self) -> None:
@@ -190,6 +186,67 @@ class UserSoulClient:
             archetypes=archetypes,
             top_n=top_n,
         )
+
+    # ─── Persona-cohort decisions (VoteEngine) ───────────────────────────────
+
+    def decide(self, question: str, options: list[str], context: str, *,
+               personas: "list[AgentProfile] | None" = None,
+               n: int = 5) -> "DecisionResult":
+        """Classify a question across a persona cohort (e.g. Kano category).
+
+        Returns a DecisionResult with the winning option, confidence (vote share)
+        and full distribution. Personas are auto-generated from `context` if not given.
+        """
+        pool = personas or self._persona.get_or_create(context, n)
+        return self._vote.classify(question, options, context, pool)
+
+    def score(self, question: str, lo: float, hi: float, context: str, *,
+              personas: "list[AgentProfile] | None" = None,
+              n: int = 5) -> "DecisionResult":
+        """Score a question on a numeric scale across a persona cohort.
+
+        Returns a DecisionResult whose value is the cohort mean and whose
+        confidence reflects agreement (1 − normalised stdev).
+        """
+        pool = personas or self._persona.get_or_create(context, n)
+        return self._vote.score(question, lo, hi, context, pool)
+
+    # ─── ELTM research-bridge capabilities (legacy MCVClient, now surfaced) ───
+
+    def _mcv(self):
+        """Construct the legacy MCVClient for capabilities not yet in the engine
+        stack (coherence validation, friction attribution). Requires an api-keyed
+        backend (AnthropicBackend)."""
+        api_key = getattr(self._backend, "api_key", None)
+        if not api_key:
+            raise ValueError(
+                "validate_coherence/attribute_frictions need a backend exposing "
+                "`api_key` (e.g. AnthropicBackend); the given backend has none."
+            )
+        from user_soul.voter import MCVClient
+        return MCVClient(api_key=api_key)
+
+    def validate_coherence(self, product_description: str,
+                           selected_features: list[dict],
+                           dropped_features: list[dict] | None = None, *,
+                           deep: bool = False) -> "CoherenceReport":
+        """Catch dropped feature dependencies before build (ELTM Phase 0.8).
+
+        Rule-based pass is free; pass deep=True to also run an LLM gap analysis
+        for non-social dependency types. Returns a CoherenceReport.
+        """
+        return self._mcv().validate_coherence(
+            product_description, selected_features, dropped_features, deep=deep)
+
+    def attribute_frictions(self, product: str, frictions: list[str],
+                            features: list[dict], *,
+                            game_name: str = "",
+                            original_slug: str = "") -> dict:
+        """Map simulation friction themes to a Code-Soul reforge() defect manifest
+        (ELTM Phase 8.8 → PDCA). Empty frictions → empty manifest, no LLM call."""
+        return self._mcv().attribute_frictions(
+            product, frictions, features,
+            game_name=game_name, original_slug=original_slug)
 
     def get_pulse(
         self,

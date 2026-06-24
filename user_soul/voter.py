@@ -305,14 +305,18 @@ class MCVClient:
         selected_features: list,
         dropped_features: list | None = None,
         user_type: str = "普通用户",
+        deep: bool = False,
     ):
         """Detect dependency gaps in a selected feature set.
 
         Pass 1 (rule-based, free): flag social-dependent features (ludo/game/room)
         selected without any social-enabler (invite/friends/refer).
 
-        Pass 2 (1 Sonnet call, only when gaps found AND dropped_features provided):
-        identify blocked Day-1 journeys and critical features to reinstate.
+        Pass 2 (1 Sonnet call): identify blocked Day-1 journeys and critical
+        features to reinstate. Runs when the rule pass found a gap AND
+        dropped_features is provided; pass deep=True to also run it when the rule
+        pass found nothing (catches non-social dependency types the keyword pass
+        can't see — costs one LLM call, so off by default to keep the M1 loop fast).
 
         Returns:
             CoherenceReport. is_coherent=True when no dependency violations found.
@@ -321,7 +325,10 @@ class MCVClient:
         import re as _re
         from user_soul import core as _core
 
-        selected_ids = [f["id"] for f in selected_features]
+        def _fid(f):
+            return f.get("id") or f.get("name") or "?"
+
+        selected_ids = [_fid(f) for f in selected_features]
         missing_deps: list = []
         blocked_journeys: list = []
         reinstate: list = []
@@ -337,7 +344,7 @@ class MCVClient:
         ]
 
         if dependent_features and not has_enabler:
-            dep_ids = [f["id"] for f in dependent_features]
+            dep_ids = [_fid(f) for f in dependent_features]
             missing_deps.append({
                 "feature_id": "social_enabler",
                 "required_by": dep_ids,
@@ -352,10 +359,10 @@ class MCVClient:
                 for df in dropped_features:
                     df_words = set((df.get("description", "") or df["name"]).lower().split())
                     if df_words & _SOCIAL_ENABLER_KW:
-                        reinstate.append(df["id"])
+                        reinstate.append(_fid(df))
 
-        # Pass 2: LLM gap analysis (only when gaps exist AND dropped_features provided)
-        if missing_deps and dropped_features:
+        # Pass 2: LLM gap analysis (gaps found, or deep=True for non-social deps)
+        if (missing_deps or deep) and dropped_features:
             selected_block = "\n".join(
                 f"- {f['id']}: {f['name']} — {f.get('description', '')}"
                 for f in selected_features
@@ -421,7 +428,11 @@ class MCVClient:
             return {"defects": [], "game_name": game_name, "original_slug": original_slug}
 
         features_block = (
-            "\n".join(f"- {f['id']}: {f['name']} — {f.get('description', '')}" for f in features)
+            "\n".join(
+                f"- {f.get('id') or f.get('name') or '?'}: "
+                f"{f.get('name', '')} — {f.get('description', '')}"
+                for f in features
+            )
             or "(none)"
         )
         frictions_block = "\n".join(f"- {fr}" for fr in frictions)

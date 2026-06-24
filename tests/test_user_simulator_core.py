@@ -48,7 +48,7 @@ def test_simulate_uses_temperature_1():
     assert mock_llm.call_args[1]["temperature"] == 1.0
 
 
-def test_simulate_uses_haiku():
+def test_simulate_uses_resolved_model():
     sim = UserSimulator("玩家", GameDomainConfig, api_key="test")
     sim._metrics = [EvaluationMetric("x", "bool", "?")]
     sim._product = "游戏"
@@ -57,8 +57,9 @@ def test_simulate_uses_haiku():
         mock_llm.return_value = ("叙述...\nx: yes", 200)
         sim.simulate(n_runs=1)
 
+    # _haiku_model resolves to the main model (Sonnet by default), never Opus.
     model = mock_llm.call_args[1].get("model", "")
-    assert "haiku" in model.lower()
+    assert "claude" in model.lower()
 
 
 def test_simulate_returns_self_for_chaining():

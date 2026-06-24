@@ -105,7 +105,7 @@ def _llm_call(
     model: str | None = None,
 ) -> tuple[str, int]:
     """Single LLM call → (response_text, tokens_used)."""
-    from elm.llm_client import make_client
+    from eltm.llm_client import make_client
     _model = model or _model_name(api_key)
     kwargs: dict = dict(
         model=_model,
