@@ -177,6 +177,15 @@ class ExperimentManager:
         self._layers: dict[str, list[str]] = {}
         self._configs: dict[str, DynamicConfigSpec] = {}
         self._sticky: dict[tuple[str, str], str] = {}  # (unit_id, exp) → variant
+        self._id_lists: dict[str, set[str]] = {}        # segment name → unit ids
+
+    def add_id_list(self, name: str, ids) -> None:
+        """Register an uploaded ID list / segment (Statsig segments)."""
+        self._id_lists[name] = set(str(i) for i in ids)
+
+    def _segment_cb(self):
+        """Callback for in_segment/not_in_segment conditions."""
+        return lambda user, seg: user.user_id in self._id_lists.get(seg, set())
 
     @staticmethod
     def _unit_id(user, id_type: str) -> str:
@@ -210,6 +219,7 @@ class ExperimentManager:
             ev = evaluate_rules(
                 view, spec.rules, _bucket, spec.salt,
                 default_value=None, pass_gate=self._pass_gate_cb(),
+                segments=self._segment_cb(),
             )
             if ev.reason == REASON_RULE and isinstance(ev.value, dict):
                 merged = dict(spec.defaults); merged.update(ev.value)
@@ -268,6 +278,7 @@ class ExperimentManager:
             ev = evaluate_rules(
                 view, exp.targeting_rules, _bucket, f"target:{exp.salt}",
                 default_value=None, pass_gate=self._pass_gate_cb(),
+                segments=self._segment_cb(),
             )
             if ev.reason != REASON_RULE:
                 return AssignmentResult(experiment_name, None, "default", "Default", REASON_DEFAULT)
@@ -326,6 +337,7 @@ class ExperimentManager:
             ev = evaluate_rules(
                 _UnitView(user, unit), gate.rules, _bucket, gate.salt,
                 default_value=False, pass_gate=self._pass_gate_cb(),
+                segments=self._segment_cb(),
             )
             # A rule that matched serves a (possibly False) value.
             if ev.reason in (REASON_RULE, REASON_DISABLED):
@@ -445,6 +457,7 @@ class ExperimentManager:
                 {"name": h.name, "holdout_pct": h.holdout_pct, "description": h.description}
                 for h in self._holdouts.values()
             ],
+            "id_lists": {name: sorted(ids) for name, ids in self._id_lists.items()},
         }
 
     @classmethod
@@ -479,4 +492,6 @@ class ExperimentManager:
             mgr.add_holdout(
                 HoldoutConfig(h["name"], h["holdout_pct"], h.get("description", ""))
             )
+        for name, ids in config.get("id_lists", {}).items():
+            mgr.add_id_list(name, ids)
         return mgr

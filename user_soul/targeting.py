@@ -12,7 +12,10 @@ a big-endian uint64 → % 10000 buckets (see experiment_manager._bucket_int).
 """
 from __future__ import annotations
 
+import ipaddress
+import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Callable
 
 
@@ -37,9 +40,13 @@ class Condition:
               public | eq | neq | in | not_in |
               gt | gte | lt | lte |
               version_gt | version_gte | version_lt | version_lte |
-              contains | starts_with | ends_with |
+              contains | starts_with | ends_with | regex |
+              ip_in_cidr |
+              before | after |
+              in_segment | not_in_segment |
               pass_gate | fail_gate
-    target:   the comparison value (scalar, list, or gate-name for pass_gate).
+    target:   the comparison value (scalar, list, CIDR(s), ISO date, segment
+              name, or gate-name depending on operator).
     """
     operator: str
     field: str = ""
@@ -101,6 +108,23 @@ def _cmp_versions(a: Any, b: Any) -> int:
     return (va > vb) - (va < vb)
 
 
+def _to_timestamp(v: Any) -> float | None:
+    """Parse an ISO date/datetime string or epoch number → epoch seconds."""
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = str(v).strip()
+    try:
+        return float(s)  # numeric epoch as string
+    except ValueError:
+        pass
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
 def _resolve_field(user, field_name: str) -> Any:
     """Resolve a StatsigUser attribute or custom field by Statsig-ish field name."""
     if not field_name:
@@ -127,6 +151,7 @@ def _eval_condition(
     cond: Condition,
     user,
     pass_gate: Callable[[object, str], bool] | None = None,
+    segments: Callable[[object, str], bool] | None = None,
 ) -> bool:
     op = cond.operator
     if op in ("public", "everyone", "any"):
@@ -138,8 +163,44 @@ def _eval_condition(
         passed = pass_gate(user, str(cond.target))
         return passed if op == "pass_gate" else (not passed)
 
+    if op in ("in_segment", "not_in_segment"):
+        if segments is None:
+            return False
+        member = segments(user, str(cond.target))
+        return member if op == "in_segment" else (not member)
+
     actual = _resolve_field(user, cond.field)
     target = cond.target
+
+    if op == "regex":
+        if actual is None:
+            return False
+        try:
+            return bool(re.search(str(target), str(actual)))
+        except re.error:
+            return False
+
+    if op == "ip_in_cidr":
+        if actual is None:
+            return False
+        cidrs = target if isinstance(target, (list, tuple)) else [target]
+        try:
+            ip = ipaddress.ip_address(str(actual))
+        except ValueError:
+            return False
+        for c in cidrs:
+            try:
+                if ip in ipaddress.ip_network(str(c), strict=False):
+                    return True
+            except ValueError:
+                continue
+        return False
+
+    if op in ("before", "after"):
+        a, t = _to_timestamp(actual), _to_timestamp(target)
+        if a is None or t is None:
+            return False
+        return a < t if op == "before" else a > t
 
     if op == "eq":
         return actual == target
@@ -184,6 +245,7 @@ def evaluate_rules(
     salt: str,
     default_value: Any,
     pass_gate: Callable[[object, str], bool] | None = None,
+    segments: Callable[[object, str], bool] | None = None,
 ) -> Evaluation:
     """Evaluate an ordered rule list, Statsig-style.
 
@@ -194,7 +256,7 @@ def evaluate_rules(
     default. If no rule matches, return default with reason Default.
     """
     for rule in rules:
-        if all(_eval_condition(c, user, pass_gate) for c in rule.conditions):
+        if all(_eval_condition(c, user, pass_gate, segments) for c in rule.conditions):
             if rule.pass_pct >= 1.0 or bucket_fn(user.user_id, f"{salt}:{rule.id}") < rule.pass_pct:
                 return Evaluation(rule.return_value, rule.id, rule.group_name, REASON_RULE)
             # conditions matched but bucketed out → this rule does not serve.

@@ -26,7 +26,11 @@ class PulseMetric:
     absolute_diff: float = 0.0           # treatment_value - control_value (absolute)
     sequential_p_value: float = 1.0      # always-valid (anytime) p-value (mSPRT)
     significant_corrected: bool = False  # Bonferroni-corrected across the report
+    significant_fdr: bool = False        # Benjamini-Hochberg FDR-corrected
+    seq_ci_lower: float = -1.0           # always-valid (anytime) CI on absolute diff
+    seq_ci_upper: float = 1.0
     variance_reduced: bool = False       # True if CUPED was applied
+    winsorized: bool = False             # True if outliers were capped before testing
 
 
 @dataclass
@@ -98,6 +102,60 @@ class PulseComputer:
         if log_lam <= 0.0:
             return 1.0
         return round(min(1.0, math.exp(-log_lam)), 6)
+
+    def always_valid_ci(
+        self, theta_hat: float, se: float, tau: float | None = None,
+        alpha: float | None = None,
+    ) -> tuple[float, float]:
+        """mSPRT anytime-valid confidence sequence for the effect (absolute diff).
+
+        Always-valid CIs may be monitored continuously without coverage loss; they
+        are WIDER than the fixed-n 95% CI. Radius² = [2 s²(s²+τ²)/τ²]·ln(√((s²+τ²)/s²)/α).
+        """
+        if se <= 0:
+            return (round(theta_hat, 6), round(theta_hat, 6))
+        tau = self._tau if tau is None else tau
+        a = self._alpha if alpha is None else alpha
+        s2, t2 = se * se, tau * tau
+        radius = math.sqrt((2 * s2 * (s2 + t2) / t2) * math.log(math.sqrt((s2 + t2) / s2) / a))
+        return (round(theta_hat - radius, 6), round(theta_hat + radius, 6))
+
+    @staticmethod
+    def winsorize(values: list[float], pct: float = 0.01) -> tuple[list[float], bool]:
+        """Cap each tail at the given percentile (Statsig outlier handling).
+
+        Returns (capped_values, did_cap). pct=0.01 caps the top/bottom 1%.
+        """
+        n = len(values)
+        if n < 5 or pct <= 0:
+            return (list(values), False)
+        s = sorted(values)
+        k = max(0, min(n - 1, int(n * pct)))
+        lo, hi = s[k], s[n - 1 - k]
+        capped = [lo if v < lo else hi if v > hi else v for v in values]
+        return (capped, capped != list(values))
+
+    @staticmethod
+    def benjamini_hochberg(p_values: list[float], alpha: float = 0.05) -> list[bool]:
+        """Benjamini-Hochberg FDR: which hypotheses are significant controlling FDR.
+
+        Less conservative than Bonferroni (more power) while bounding the expected
+        false-discovery proportion at alpha. Returns a parallel bool list.
+        """
+        m = len(p_values)
+        if m == 0:
+            return []
+        order = sorted(range(m), key=lambda i: p_values[i])
+        passing = [False] * m
+        max_k = -1
+        for rank, idx in enumerate(order, start=1):
+            if p_values[idx] <= (rank / m) * alpha:
+                max_k = rank
+        if max_k > 0:
+            for rank, idx in enumerate(order, start=1):
+                if rank <= max_k:
+                    passing[idx] = True
+        return passing
 
     def _z_se_proportion(self, n1: int, x1: int, n2: int, x2: int) -> tuple[float, float]:
         """Return (z, se_of_difference) for two proportions, or (0,0) if tiny."""
@@ -230,6 +288,8 @@ class PulseComputer:
                 metric_type="proportion",
                 absolute_diff=round(p2 - p1, 6),
                 sequential_p_value=self.always_valid_p(z, se),
+                **dict(zip(("seq_ci_lower", "seq_ci_upper"),
+                           self.always_valid_ci(p2 - p1, se))),
             ))
 
         self._apply_correction(pulse_metrics)
@@ -257,10 +317,16 @@ class PulseComputer:
         experiment_name: str,
         metrics: dict[str, tuple[list[float], list[float]]],
         _variance_reduced: dict | None = None,
+        winsorize_pct: float = 0.0,
     ) -> PulseReport:
         _variance_reduced = _variance_reduced or {}
         pulse_metrics: list[PulseMetric] = []
         for name, (ctrl_vals, trt_vals) in metrics.items():
+            winsored = False
+            if winsorize_pct > 0:
+                ctrl_vals, c_cap = self.winsorize(ctrl_vals, winsorize_pct)
+                trt_vals, t_cap = self.winsorize(trt_vals, winsorize_pct)
+                winsored = c_cap or t_cap
             lift, p_value, ci_lower, ci_upper = self.welch_t_test(ctrl_vals, trt_vals)
             mean1 = statistics.mean(ctrl_vals) if ctrl_vals else 0.0
             mean2 = statistics.mean(trt_vals) if trt_vals else 0.0
@@ -279,7 +345,10 @@ class PulseComputer:
                 metric_type="continuous",
                 absolute_diff=round(mean2 - mean1, 6),
                 sequential_p_value=self.always_valid_p(z, se),
+                **dict(zip(("seq_ci_lower", "seq_ci_upper"),
+                           self.always_valid_ci(mean2 - mean1, se))),
                 variance_reduced=_variance_reduced.get(name, False),
+                winsorized=winsored,
             ))
 
         self._apply_correction(pulse_metrics)
@@ -324,6 +393,79 @@ class PulseComputer:
             reduced[name] = True
         return self.compute_from_values(experiment_name, adjusted, _variance_reduced=reduced)
 
+    @staticmethod
+    def _ratio_stats(num: list[float], den: list[float]) -> tuple[float, float]:
+        """Delta-method ratio estimate R=Σnum/Σden and Var(R) for a per-unit ratio
+        metric (e.g. clicks-per-impression). Accounts for num/den correlation."""
+        n = min(len(num), len(den))
+        if n < 2:
+            return (0.0, 0.0)
+        num, den = num[:n], den[:n]
+        mu_n, mu_d = statistics.mean(num), statistics.mean(den)
+        if abs(mu_d) < 1e-12:
+            return (0.0, 0.0)
+        R = mu_n / mu_d
+        var_n = statistics.variance(num)
+        var_d = statistics.variance(den)
+        cov = sum((num[i] - mu_n) * (den[i] - mu_d) for i in range(n)) / (n - 1)
+        var_R = (var_n - 2 * R * cov + R * R * var_d) / (mu_d * mu_d * n)
+        return (R, max(0.0, var_R))
+
+    def compute_from_ratios(
+        self,
+        experiment_name: str,
+        metrics: dict,
+    ) -> PulseReport:
+        """Ratio metrics with delta-method variance (Statsig ratio metrics).
+
+        metrics format: {name: (ctrl_num, ctrl_den, trt_num, trt_den)} — each a
+        per-unit list. Handles the num/den correlation that a naive per-row mean
+        would get wrong (e.g. CTR = clicks/impressions aggregated across users).
+        """
+        pulse_metrics: list[PulseMetric] = []
+        for name, (cn, cd, tn, td) in metrics.items():
+            r1, v1 = self._ratio_stats(cn, cd)
+            r2, v2 = self._ratio_stats(tn, td)
+            se = math.sqrt(max(1e-18, v1 + v2))
+            diff = r2 - r1
+            z = diff / se if se > 0 else 0.0
+            p_value = round(2 * (1 - _norm_cdf(abs(z))), 6)
+            lift = round(diff / max(1e-9, abs(r1)), 6) if r1 else 0.0
+            seq_lo, seq_hi = self.always_valid_ci(diff, se)
+            pulse_metrics.append(PulseMetric(
+                name=name,
+                control_value=round(r1, 6),
+                treatment_value=round(r2, 6),
+                lift=lift,
+                p_value=p_value,
+                significant=p_value < self._alpha,
+                control_n=min(len(cn), len(cd)),
+                treatment_n=min(len(tn), len(td)),
+                ci_lower=round(diff - 1.96 * se, 6),
+                ci_upper=round(diff + 1.96 * se, 6),
+                metric_type="ratio",
+                absolute_diff=round(diff, 6),
+                sequential_p_value=self.always_valid_p(z, se),
+                seq_ci_lower=seq_lo, seq_ci_upper=seq_hi,
+            ))
+        self._apply_correction(pulse_metrics)
+        wins = sum(1 for m in pulse_metrics if m.significant and m.lift > 0)
+        losses = sum(1 for m in pulse_metrics if m.significant and m.lift < 0)
+        n1 = min((m.control_n for m in pulse_metrics), default=0)
+        n2 = min((m.treatment_n for m in pulse_metrics), default=0)
+        power = self.power_estimate(n1, n2)
+        report = PulseReport(
+            experiment_name=experiment_name,
+            metrics=pulse_metrics,
+            overall_verdict=self._determine_verdict(wins, losses, power),
+            power_estimate=power,
+            significant_wins=wins,
+            significant_losses=losses,
+            summary="",
+        )
+        report.summary = self._build_summary(report)
+        return report
+
     def _z_se_continuous(self, v1: list[float], v2: list[float]) -> tuple[float, float]:
         if len(v1) < 2 or len(v2) < 2:
             return (0.0, 0.0)
@@ -332,11 +474,14 @@ class PulseComputer:
         return ((statistics.mean(v2) - statistics.mean(v1)) / se, se)
 
     def _apply_correction(self, metrics: list[PulseMetric]) -> None:
-        """Bonferroni correction across the metrics in this report."""
+        """Multiple-testing correction across the report: Bonferroni + BH-FDR."""
         m = max(1, len(metrics))
         thresh = self._alpha / m
         for pm in metrics:
             pm.significant_corrected = pm.p_value < thresh
+        fdr = self.benjamini_hochberg([pm.p_value for pm in metrics], self._alpha)
+        for pm, ok in zip(metrics, fdr):
+            pm.significant_fdr = ok
 
     def _determine_verdict(self, wins: int, losses: int, power: float) -> str:
         if power < 0.8 and wins == 0 and losses == 0:
