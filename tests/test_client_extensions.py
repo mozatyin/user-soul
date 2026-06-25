@@ -11,6 +11,7 @@ be reached from UserSoulClient — the §5 "capability not on the entry path" tr
 from __future__ import annotations
 
 import json
+import types
 from unittest.mock import MagicMock, patch
 
 from user_soul.client import UserSoulClient
@@ -136,3 +137,41 @@ def test_legacy_capability_requires_api_key_backend():
     import pytest
     with pytest.raises(ValueError, match="api_key"):
         client.validate_coherence("app", [{"id": "x", "name": "X"}])
+
+
+# ---------------------------------------------------------------------------
+# phase9_gate — unified Phase 9 entry (visual vs headless text)
+# ---------------------------------------------------------------------------
+
+def test_phase9_gate_visual_mode_uses_launch():
+    client = UserSoulClient(MagicMock())
+    fake_report = types.SimpleNamespace(recommendation="SHIP")
+    with patch("user_soul.client.LaunchGate") as MockGate:
+        MockGate.return_value.run.return_value = fake_report
+        res = client.phase9_gate(
+            "a chess app",
+            product_screenshots=[b"\x89PNG"],
+            competitor_screenshots=[("rival", b"\x89PNG")])
+    assert res["mode"] == "visual"
+    assert res["recommendation"] == "SHIP"
+    assert res["launch_ready"] is True
+    assert res["human_confirms"] is True   # §4: human always confirms
+
+
+def test_phase9_gate_text_mode_uses_ab_validator():
+    from user_soul.models import CompareReport
+    client = UserSoulClient(_backend_with_key())
+    compare = CompareReport(
+        n_runs_per_variant=5, variant_a_label="ours", variant_b_label="ref",
+        variant_a=None, variant_b=None, deltas={},
+        improvements=["engagement", "retention"], regressions=[], key_diff="")
+    with patch("user_soul.ab_validator.build_domain_config", return_value=MagicMock()), \
+         patch("user_soul.ab_validator.UserSimulator") as MockSim, \
+         patch("user_soul.ab_validator.ABValidator._generate_summary", return_value="ok"):
+        MockSim.return_value.compare.return_value = compare
+        res = client.phase9_gate("a chess app", reference_product="Chess.com")
+    assert res["mode"] == "text"
+    # 2 improvements, 0 regressions → beats_reference + launch_ready → SHIP
+    assert res["recommendation"] == "SHIP"
+    assert res["launch_ready"] is True
+    assert res["human_confirms"] is True

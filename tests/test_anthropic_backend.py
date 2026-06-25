@@ -24,22 +24,22 @@ def test_text_calls_anthropic(monkeypatch):
     mock_client.messages.create.assert_called_once()
 
 
-def test_model_tier_fast_defaults_to_sonnet_not_opus(monkeypatch):
-    # fast tier is the persona-simulation tier: it must never burn Opus.
-    # Default (no env) is Sonnet.
+def test_model_tier_fast_defaults_to_haiku(monkeypatch):
+    # fast tier is the persona-simulation tier: Monte-Carlo rolls N× so it must be
+    # cheap. Default (no env) is Haiku, never Opus.
     monkeypatch.delenv("USER_SOUL_MODEL", raising=False)
     monkeypatch.delenv("GAME_GEN_MODEL", raising=False)
     backend = AnthropicBackend(api_key="sk-test")
     m = backend._resolve_model("fast")
-    assert "sonnet" in m
+    assert "haiku" in m
     assert "opus" not in m
 
 
 def test_model_tier_fast_configurable(monkeypatch):
-    # The cheap fast tier is pinnable via USER_SOUL_MODEL (e.g. Haiku for cost).
-    monkeypatch.setenv("USER_SOUL_MODEL", "claude-haiku-4-5")
+    # The fast tier is pinnable via USER_SOUL_MODEL (e.g. Sonnet for more quality).
+    monkeypatch.setenv("USER_SOUL_MODEL", "claude-sonnet-4-6")
     backend = AnthropicBackend(api_key="sk-test")
-    assert "haiku" in backend._resolve_model("fast")
+    assert "sonnet" in backend._resolve_model("fast")
 
 
 def test_model_tier_smart_uses_sonnet(monkeypatch):

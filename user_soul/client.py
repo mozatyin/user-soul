@@ -312,6 +312,55 @@ class UserSoulClient:
                          competitor_screenshots,
                          personas=personas, metrics=metrics, goal=goal)
 
+    def phase9_gate(self, product_description: str, *,
+                    product_screenshots: list[bytes] | None = None,
+                    competitor_screenshots: list[tuple[str, bytes]] | None = None,
+                    reference_product: str | None = None,
+                    user_type: str = "general user",
+                    goal: str | None = None,
+                    personas: list[AgentProfile] | None = None,
+                    metrics: list[EvaluationMetric] | None = None) -> dict:
+        """Unified ELTM-Flow Phase 9 launch gate — ONE entry, two modes:
+
+        - `product_screenshots` given → full visual taste gate (`launch()` → VLM
+          pairwise taste + behavioral sim → SHIP/IMPROVE/ABANDON).
+        - otherwise → headless text A/B vs `reference_product` (ABValidator) →
+          verdict mapped to SHIP/IMPROVE.
+
+        Either way the verdict is ADVISORY: a human makes the final call
+        (Constitution §4 — AI is never the final judge). Returns a normalized dict:
+        {mode, recommendation, launch_ready, human_confirms, detail}.
+        """
+        if product_screenshots:
+            report = self.launch(
+                product_description, product_screenshots,
+                competitor_screenshots or [],
+                personas=personas, metrics=metrics, goal=goal)
+            return {
+                "mode": "visual",
+                "recommendation": report.recommendation,
+                "launch_ready": report.recommendation == "SHIP",
+                "human_confirms": True,
+                "detail": report,
+            }
+
+        from user_soul.ab_validator import ABValidator
+        validator = ABValidator(self._backend,
+                                api_key=getattr(self._backend, "api_key", None))
+        rep = validator.validate(
+            our_product=product_description,
+            reference_product=reference_product or "industry benchmark",
+            user_type=user_type,
+            goal=goal or f"use {product_description[:40]} and decide whether to return",
+        )
+        return {
+            "mode": "text",
+            "recommendation": "SHIP" if rep.launch_ready else "IMPROVE",
+            "launch_ready": rep.launch_ready,
+            "human_confirms": True,
+            "detail": rep,
+        }
+
     def playtest(self, html_path: str, product_description: str, *,
                  personas: list[AgentProfile] | None = None,
                  k_turns: int = 12,

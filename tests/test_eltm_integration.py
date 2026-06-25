@@ -11,9 +11,12 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
+import types
+
 from user_soul.eltm_integration import (
     pre_build_filter,
     post_build_validate,
+    check_expectations_met,
     FilterResult,
     ValidationResult,
 )
@@ -190,3 +193,34 @@ def test_post_build_validate_signature_is_correct():
     reqs = result.to_requirements()
     assert any(r.startswith("[User Soul P0]") for r in reqs)
     assert "Phase 8.8" in result.summary()
+
+
+# ---------------------------------------------------------------------------
+# 4. Persona Memory Chain (Decision #52) — check_expectations_met
+# ---------------------------------------------------------------------------
+
+def _must_have(*names):
+    return [types.SimpleNamespace(name=n) for n in names]
+
+
+def test_expectations_met_when_feature_in_product():
+    # "Daily Puzzles" is a moon_feature of BUILD_OUTPUT → should read as met.
+    exp = check_expectations_met(_must_have("Daily Puzzles"), BUILD_OUTPUT)
+    assert "Daily Puzzles" in exp["met"]
+    assert exp["unmet"] == []
+    assert exp["met_rate"] == 1.0
+    assert exp["requirements"] == []
+
+
+def test_expectations_unmet_becomes_pdca_requirement():
+    # A feature the personas wanted but the product never surfaces → unmet → P0.
+    exp = check_expectations_met(_must_have("Online Multiplayer Tournaments"), BUILD_OUTPUT)
+    assert "Online Multiplayer Tournaments" in exp["unmet"]
+    assert exp["met_rate"] == 0.0
+    assert any(r.startswith("[User Soul P0] Persona expectation unmet") for r in exp["requirements"])
+
+
+def test_expectations_empty_is_fully_met():
+    exp = check_expectations_met([], BUILD_OUTPUT)
+    assert exp["met_rate"] == 1.0
+    assert exp["requirements"] == []

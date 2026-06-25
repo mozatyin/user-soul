@@ -53,11 +53,13 @@ class AnthropicBackend:
 
     def _resolve_model(self, tier: str) -> str:
         import os
-        # fast tier: use USER_SOUL_MODEL or Sonnet (never burn Opus on persona simulation)
-        # smart/other: use ANTHROPIC_MODEL (main system model)
+        # fast tier: the persona-simulation tier. Defaults to Haiku — Monte-Carlo
+        # rolls the die N× per persona, so this must be cheap (design intent); pin
+        # via USER_SOUL_MODEL/GAME_GEN_MODEL to override. Never the main/Opus model.
+        # smart/other: use ANTHROPIC_MODEL (main system model) for schema/vision.
         if tier == "fast":
             env_model = os.environ.get("USER_SOUL_MODEL",
-                        os.environ.get("GAME_GEN_MODEL", "claude-sonnet-4-6")).split("[")[0]
+                        os.environ.get("GAME_GEN_MODEL", "claude-haiku-4-5")).split("[")[0]
         else:
             env_model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6").split("[")[0]
         if self._api_key.startswith("sk-or-"):

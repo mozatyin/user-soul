@@ -44,8 +44,17 @@ def _model_name(api_key: str) -> str:
 
 
 def _haiku_model(api_key: str) -> str:
-    """Model for simulation — same as main model from ANTHROPIC_MODEL env."""
-    return _model_name(api_key)
+    """Cheap model for Monte-Carlo simulation — Haiku by default (USER_SOUL_MODEL /
+    GAME_GEN_MODEL override). Persona simulation rolls the die N×, so cost matters;
+    never the main/Opus model."""
+    import os
+    model = os.environ.get("USER_SOUL_MODEL",
+            os.environ.get("GAME_GEN_MODEL", "claude-haiku-4-5")).split("[")[0]
+    if api_key.startswith("sk-or-"):
+        from eltm.config import _env_model_to_or
+        return _env_model_to_or(model)
+    from eltm.config import _env_model_to_anthropic
+    return _env_model_to_anthropic(model)
 
 
 # Module-level cache: probed once per process, reused across all _llm_call()s.

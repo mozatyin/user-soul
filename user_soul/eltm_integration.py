@@ -225,6 +225,56 @@ def post_build_validate(
     return result
 
 
+def check_expectations_met(must_have_features, build_result: dict) -> dict:
+    """Persona Memory Chain (ELTM-Flow Decision #52).
+
+    The must-have features the Phase 0.7 personas voted for ARE their stated
+    expectations ("我之前期望的"). This carries those expectations forward to
+    Phase 8.8 and checks — deterministically, by name/keyword presence in the
+    built product text, no LLM — which were actually delivered. Unmet expectations
+    become P0 PDCA requirements, so the SAME personas' earlier wishes drive the
+    next iteration rather than abstract metrics.
+
+    Heuristic (honest limitation): this is a text-coverage check, not a semantic
+    one — a feature renamed beyond keyword recognition during fusion may read as
+    unmet. Treat unmet as "not clearly surfaced", a candidate for review.
+
+    Returns: {met: [names], unmet: [names], requirements: [str], met_rate: float}
+    """
+    import re as _re
+    from user_soul.eltm_adapter import build_product_description
+
+    built_text = " ".join([
+        str(build_result.get("prd_text") or ""),
+        str((build_result.get("formal_rules") or {}).get("prd_summary", "") or ""),
+        build_product_description(build_result),
+    ]).lower()
+
+    met: list[str] = []
+    unmet: list[str] = []
+    for f in (must_have_features or []):
+        name = (getattr(f, "name", "") or getattr(f, "id", "") or "").strip()
+        if not name:
+            continue
+        words = [w for w in _re.findall(r"[a-z0-9]+", name.lower()) if len(w) > 3]
+        present = name.lower() in built_text or (
+            bool(words) and sum(1 for w in words if w in built_text) >= (len(words) // 2 + 1)
+        )
+        (met if present else unmet).append(name)
+
+    requirements = [
+        f"[User Soul P0] Persona expectation unmet: '{n}' — built product does not surface it"
+        for n in unmet
+    ]
+    total = len(met) + len(unmet)
+    return {
+        "met": met,
+        "unmet": unmet,
+        "requirements": requirements,
+        "met_rate": round(len(met) / total, 4) if total else 1.0,
+    }
+
+
 def _add_user_soul_path() -> None:
     """Ensure user_soul is importable — handles both installed and dev layouts."""
     import sys, os
