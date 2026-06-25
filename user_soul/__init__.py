@@ -25,6 +25,10 @@ from user_soul.targeting import Condition, TargetingRule
 from user_soul.dynamic_config import DynamicConfig
 from user_soul.layer import Layer
 from user_soul.pulse import PulseComputer, PulseReport, PulseMetric
+from user_soul.series_diagnostics import SeriesDiagnostics, MetricFinding
+from user_soul.kix_adapter import (
+    extract_charts_data, to_metric_rows, diagnose_report,
+)
 from user_soul.data_source import (
     SimulatedDataSource, RealDataSource, HybridDataSource, create_data_source,
 )
@@ -103,5 +107,7 @@ __all__ = [
     "FeatureGateConfig", "HoldoutConfig", "LayerConfig",
     "DynamicConfig",
     "PulseComputer", "PulseReport", "PulseMetric",
+    "SeriesDiagnostics", "MetricFinding",
+    "extract_charts_data", "to_metric_rows", "diagnose_report",
     "SimulatedDataSource", "RealDataSource", "HybridDataSource", "create_data_source",
 ]
