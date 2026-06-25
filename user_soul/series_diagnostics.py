@@ -51,6 +51,7 @@ class MetricFinding:
     metric_nature: str             # "additive" | "ratio" | ...
     significant_fdr: bool = False
     adverse: bool = False          # move is in the business-bad direction
+    low_sample: bool = False       # count metric below min_volume → thin/unstable
     severity: str = "info"         # "P1" | "P2" | "watch" | "positive" | "info"
 
     def as_row(self) -> dict:
@@ -70,11 +71,16 @@ def _polarity_adverse_up(title: str, domain: str) -> bool:
 
 class SeriesDiagnostics:
     def __init__(self, baseline_window: int = 14, alpha: float = 0.05,
-                 min_baseline: int = 5, winsorize_pct: float = 0.0):
+                 min_baseline: int = 5, winsorize_pct: float = 0.0,
+                 min_volume: float = 0.0):
         self.baseline_window = baseline_window
         self.alpha = alpha
         self.min_baseline = min_baseline
         self.winsorize_pct = winsorize_pct
+        # Count (additive) metrics whose magnitude is below this are treated as
+        # thin/unstable: a "-100% WoW" on 2 users is noise, not a P1. Ratios are
+        # exempt (their magnitude is 0..1, not a volume). 0 = guard off.
+        self.min_volume = min_volume
         self._pulse = PulseComputer(alpha=alpha)
 
     def _analyze_one(self, metric_id, title, domain, dates, values,
@@ -106,6 +112,12 @@ class SeriesDiagnostics:
         slope = self._ols_slope(vals[-(self.baseline_window + 1):])
         direction = "up" if z > 0.5 else "down" if z < -0.5 else "flat"
 
+        low_sample = (
+            self.min_volume > 0
+            and metric_nature == "additive"
+            and max(abs(latest), abs(mean)) < self.min_volume
+        )
+
         return MetricFinding(
             metric_id=metric_id, title=title, domain=domain,
             latest_date=str(dates[-1]) if dates else "",
@@ -115,6 +127,7 @@ class SeriesDiagnostics:
             wow_change_pct=round(wow, 4), trend_slope=round(slope, 6),
             direction=direction, metric_nature=metric_nature,
             adverse=self._is_adverse(direction, title, domain),
+            low_sample=low_sample,
         )
 
     @staticmethod
@@ -163,10 +176,13 @@ class SeriesDiagnostics:
     def _severity(self, f: MetricFinding) -> str:
         if f.significant_fdr:
             if f.adverse:
-                return "P1" if abs(f.z_score) >= 3 else "P2"
-            return "positive"
+                base = "P1" if abs(f.z_score) >= 3 else "P2"
+                # thin count data: a real-looking move on a handful of users is
+                # not a P1 — demote to watch rather than raise a false alarm.
+                return "watch" if f.low_sample else base
+            return "info" if f.low_sample else "positive"
         # not FDR-significant but a sizeable raw move → keep an eye on it
-        if f.adverse and f.p_value < self.alpha and abs(f.z_score) >= 2:
+        if f.adverse and f.p_value < self.alpha and abs(f.z_score) >= 2 and not f.low_sample:
             return "watch"
         return "info"
 

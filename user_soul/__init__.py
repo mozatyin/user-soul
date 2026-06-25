@@ -28,6 +28,10 @@ from user_soul.pulse import PulseComputer, PulseReport, PulseMetric
 from user_soul.series_diagnostics import SeriesDiagnostics, MetricFinding
 from user_soul.kix_adapter import (
     extract_charts_data, to_metric_rows, diagnose_report,
+    available_segments, top_segments,
+)
+from user_soul.kix_report import (
+    build_report, multi_cut_diagnose, default_cuts, render_markdown,
 )
 from user_soul.data_source import (
     SimulatedDataSource, RealDataSource, HybridDataSource, create_data_source,
@@ -109,5 +113,7 @@ __all__ = [
     "PulseComputer", "PulseReport", "PulseMetric",
     "SeriesDiagnostics", "MetricFinding",
     "extract_charts_data", "to_metric_rows", "diagnose_report",
+    "available_segments", "top_segments",
+    "build_report", "multi_cut_diagnose", "default_cuts", "render_markdown",
     "SimulatedDataSource", "RealDataSource", "HybridDataSource", "create_data_source",
 ]

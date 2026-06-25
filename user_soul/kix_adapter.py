@@ -61,6 +61,28 @@ def _segment_series(tab: dict, segment: str):
     return dates, values
 
 
+def top_segments(charts_data: dict, tab_id: str, k: int = 8) -> list[str]:
+    """Top-k segments under a tab, ranked by latest-day total across all charts
+    (so by_country sweeps the high-volume markets, not all 134)."""
+    from collections import Counter
+    totals: Counter = Counter()
+    for charts in charts_data.values():
+        for chart in charts:
+            tab = _pick_tab(chart, tab_id)
+            if not tab:
+                continue
+            data = tab.get("data") or {}
+            series, matrix = data.get("series"), data.get("matrix")
+            if not series or not matrix:
+                continue
+            last = matrix[-1] if matrix else []
+            for i, name in enumerate(series):
+                v = last[i] if i < len(last) else 0
+                if isinstance(v, (int, float)):
+                    totals[name] += v
+    return [name for name, _ in totals.most_common(k)]
+
+
 def available_segments(charts_data: dict, tab_id: str) -> set[str]:
     """All segment names present under a given tab (e.g. every country in by_country)."""
     segs: set[str] = set()

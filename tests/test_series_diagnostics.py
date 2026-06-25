@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from user_soul.series_diagnostics import SeriesDiagnostics, MetricFinding
 from user_soul.kix_adapter import to_metric_rows
+from user_soul.kix_report import multi_cut_diagnose, render_markdown, build_report
 
 
 def _flat(n=20, base=100.0):
@@ -149,3 +150,85 @@ def test_overall_path_unchanged_when_no_segment():
     rows = to_metric_rows(cd)  # default first tab = overall scalar
     assert rows[0]["metric_id"] == "DAU"
     assert rows[0]["values"] == [100.0, 110.0]
+
+
+# ─── small-sample guard ──────────────────────────────────────────────────────
+
+def test_low_sample_demotes_thin_count_metric():
+    d = SeriesDiagnostics(baseline_window=14, min_volume=30)
+    vals = [2 + (i % 2) for i in range(20)]; vals[-1] = 9  # tiny counts, "spike"
+    metrics = [{"metric_id": "u", "title": "用户数 users", "domain": "growth",
+                "dates": [f"d{i}" for i in range(20)], "values": vals,
+                "metric_nature": "additive"}]
+    f = d.diagnose(metrics)[0]
+    assert f.low_sample is True
+    assert f.severity in ("info", "watch")   # never P1/P2/positive on a handful
+
+
+def test_ratio_metric_not_volume_gated():
+    # a ratio at 0.1 magnitude must NOT be flagged low_sample by a count threshold
+    d = SeriesDiagnostics(baseline_window=14, min_volume=30)
+    vals = [0.10 + (i % 3 - 1) * 0.001 for i in range(20)]; vals[-1] = 0.30
+    f = d._analyze_one("r", "留存 retention", "growth",
+                       [f"d{i}" for i in range(20)], vals, metric_nature="ratio")
+    assert f.low_sample is False
+
+
+def test_high_volume_real_drop_stays_p1():
+    d = SeriesDiagnostics(baseline_window=14, min_volume=30)
+    vals = [5000 + (i % 5) * 10 for i in range(20)]; vals[-1] = 1000  # big drop, big N
+    metrics = [{"metric_id": "dau", "title": "错误数 errors", "domain": "monitoring",
+                "dates": [f"d{i}" for i in range(20)], "values": vals,
+                "metric_nature": "additive"}]
+    f = d.diagnose(metrics)[0]
+    assert f.low_sample is False
+
+
+# ─── multi-cut report ────────────────────────────────────────────────────────
+
+def _cd_for_report():
+    days = [f"d{i}" for i in range(20)]
+    flat = [1000.0 + (i % 3 - 1) for i in range(20)]
+    spike = list(flat); spike[-1] = 3000.0
+    return {
+        "revenue": [{
+            "chart_id": "rev", "title": "revenue", "metric_id": "REV",
+            "business_domain": "Revenue",
+            "tabs": [
+                {"tab_id": "overall", "meta": {"metric_nature": "additive"},
+                 "data": {"dates": days, "values": flat}},
+                {"tab_id": "by_country", "meta": {"metric_nature": "additive"},
+                 "data": {"dates": days, "series": ["US", "SG"],
+                          "matrix": [[flat[i], spike[i]] for i in range(20)]}},
+            ],
+        }],
+    }
+
+
+def test_multi_cut_diagnose_keys_by_cut():
+    cd = _cd_for_report()
+    res = multi_cut_diagnose(cd, [("overall", None, None), ("country:SG", "by_country", "SG")],
+                             baseline_window=14, min_volume=30)
+    assert set(res.keys()) == {"overall", "country:SG"}
+    sg = [f for f in res["country:SG"] if f.severity == "positive"]
+    assert sg and sg[0].metric_id == "REV@SG"
+
+
+def test_render_markdown_has_sections_and_cut_labels():
+    cd = _cd_for_report()
+    res = multi_cut_diagnose(cd, [("country:SG", "by_country", "SG")],
+                             baseline_window=14, min_volume=30)
+    md = render_markdown(res, date="06-24")
+    assert "# KiX Diagnostic Overlay — 06-24" in md
+    assert "Positive movers" in md
+    assert "[country:SG]" in md
+
+
+def test_build_report_end_to_end_from_html():
+    import json
+    cd = _cd_for_report()
+    html = ('<script type="application/json" id="charts-data">'
+            + json.dumps(cd) + "</script>")
+    md = build_report(html, top_markets=3, baseline_window=14, min_volume=30)
+    assert "KiX Diagnostic Overlay" in md
+    assert "revenue" in md and "[country:SG]" in md

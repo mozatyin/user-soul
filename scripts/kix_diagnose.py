@@ -10,6 +10,7 @@ Usage:
     python scripts/kix_diagnose.py [URL] [--tab overall] [--domains a,b]
     python scripts/kix_diagnose.py --file path/to/report.html
     python scripts/kix_diagnose.py --tab by_country --segment SG   # SG-only cut
+    python scripts/kix_diagnose.py --report                        # full multi-cut markdown
 
 Default URL: https://daily-report-site.pages.dev/ai/angel/latest/
 """
@@ -31,7 +32,7 @@ def _fetch(url: str) -> str:
 
 
 def main(argv: list[str]) -> int:
-    url, path, tab, domains, segment = DEFAULT_URL, None, None, None, None
+    url, path, tab, domains, segment, report = DEFAULT_URL, None, None, None, None, False
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -43,12 +44,20 @@ def main(argv: list[str]) -> int:
             segment = argv[i + 1]; i += 2
         elif a == "--domains":
             domains = argv[i + 1].split(","); i += 2
+        elif a == "--report":
+            report = True; i += 1
         elif not a.startswith("-"):
             url = a; i += 1
         else:
             i += 1
 
     html = open(path, encoding="utf-8", errors="replace").read() if path else _fetch(url)
+
+    if report:
+        from user_soul.kix_report import build_report
+        print(build_report(html))
+        return 0
+
     rows = to_metric_rows(extract_charts_data(html), tab_id=tab, domains=domains,
                           segment=segment)
     diag = SeriesDiagnostics(baseline_window=14, alpha=0.05, winsorize_pct=0.05)
