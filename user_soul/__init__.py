@@ -19,8 +19,11 @@ from user_soul.event_logger import EventLogger, Event, AAARREventMap
 from user_soul.experiment_manager import (
     ExperimentManager, ExperimentConfig, ExperimentVariant,
     FeatureGateConfig, HoldoutConfig, LayerConfig,
+    FeatureGate, AssignmentResult, DynamicConfigSpec,
 )
+from user_soul.targeting import Condition, TargetingRule
 from user_soul.dynamic_config import DynamicConfig
+from user_soul.layer import Layer
 from user_soul.pulse import PulseComputer, PulseReport, PulseMetric
 from user_soul.data_source import (
     SimulatedDataSource, RealDataSource, HybridDataSource, create_data_source,
@@ -94,6 +97,8 @@ __all__ = [
     # Statsig-compatible real-data interfaces
     "StatsigUser", "StatsigOptions",
     "EventLogger", "Event", "AAARREventMap",
+    "Condition", "TargetingRule", "FeatureGate", "AssignmentResult",
+    "DynamicConfigSpec", "Layer",
     "ExperimentManager", "ExperimentConfig", "ExperimentVariant",
     "FeatureGateConfig", "HoldoutConfig", "LayerConfig",
     "DynamicConfig",

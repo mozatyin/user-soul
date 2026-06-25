@@ -21,16 +21,47 @@ class ConfigRule:
 class DynamicConfig:
     """Statsig DynamicConfig-compatible: get_value() and value property match Statsig SDK exactly."""
 
-    def __init__(self, defaults: dict | None = None):
+    def __init__(self, defaults: dict | None = None, *, name: str = "",
+                 variant: str = "", rule_id: str = "", group_name: str = "",
+                 reason: str = "Default"):
         self._defaults: dict = defaults or {}
         self._rules: list[ConfigRule] = []
-        self._name: str = ""
-        self._variant: str = ""
+        self._name: str = name
+        self._variant: str = variant
+        self._rule_id: str = rule_id
+        self._group_name: str = group_name
+        self._reason: str = reason
+        self._allocated_experiment: str | None = None
 
     @property
     def value(self) -> dict:
         """Direct access to backing dict — matches Statsig's DynamicConfig.value."""
         return dict(self._defaults)
+
+    def get_name(self) -> str:
+        """Statsig: config.get_name() → the config/experiment/layer name."""
+        return self._name
+
+    @property
+    def rule_id(self) -> str:
+        """Statsig: config.rule_id — which rule served this value."""
+        return self._rule_id
+
+    @property
+    def group_name(self) -> str:
+        """Statsig: config.group_name — the variant/group the user landed in."""
+        return self._group_name or self._variant
+
+    @property
+    def reason(self) -> str:
+        """Statsig EvaluationReason — why this value was served."""
+        return self._reason
+
+    @property
+    def evaluation_details(self) -> dict:
+        return {"name": self._name, "variant": self._variant,
+                "rule_id": self._rule_id, "group_name": self.group_name,
+                "reason": self._reason}
 
     def set(self, key: str, value: Any) -> None:
         self._defaults[key] = value

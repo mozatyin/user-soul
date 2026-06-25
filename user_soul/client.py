@@ -74,37 +74,102 @@ class UserSoulClient:
         if isinstance(options, StatsigOptions) and options.local_mode:
             self._local_mode = True
 
-    def check_gate(self, user: StatsigUser, gate_name: str) -> bool:
-        """Evaluate a feature gate for a user.
+    # ─── Exposure logging (the behaviour that feeds Pulse) ───────────────────
+    def _log_exposure(self, user: StatsigUser, event_name: str, name: str,
+                      rule_id: str, group_name: str, reason: str, **extra) -> None:
+        """Record a Statsig-style exposure event into the EventLogger.
+
+        Exposures are what Pulse reads to attribute metric movements to variants;
+        without them the experiment infra is blind. Disabled in local_mode.
+        """
+        if self._local_mode:
+            return
+        self._event_logger.log_event(
+            user_id=user.user_id,
+            event_name=event_name,
+            value=1.0,
+            name=name, rule_id=rule_id, group_name=group_name, reason=reason,
+            **extra,
+        )
+
+    def check_gate(self, user: StatsigUser, gate_name: str,
+                   log_exposure: bool = True) -> bool:
+        """Evaluate a feature gate for a user (logs an exposure by default).
 
         Statsig docs: https://docs.statsig.com/server/pythonSDK#checking-a-gate
         """
-        return self._exp_manager.check_gate(user.user_id, gate_name)
+        if f"gate:{gate_name}" in self._overrides:
+            val = bool(self._overrides[f"gate:{gate_name}"])
+            if log_exposure:
+                self._log_exposure(user, "statsig::gate_exposure", gate_name,
+                                   "override", "", "LocalOverride")
+            return val
+        gate = self._exp_manager.evaluate_gate(user, gate_name)
+        if log_exposure:
+            self._log_exposure(user, "statsig::gate_exposure", gate_name,
+                               gate.rule_id, gate.group_name, gate.reason)
+        return gate.value
 
-    def get_experiment(self, user: StatsigUser, experiment_name: str) -> DynamicConfig:
+    def get_feature_gate(self, user: StatsigUser, gate_name: str,
+                         log_exposure: bool = True):
+        """Statsig get_feature_gate → FeatureGate object (.value/.rule_id/.group_name)."""
+        gate = self._exp_manager.evaluate_gate(user, gate_name)
+        if log_exposure:
+            self._log_exposure(user, "statsig::gate_exposure", gate_name,
+                               gate.rule_id, gate.group_name, gate.reason)
+        return gate
+
+    def get_experiment(self, user: StatsigUser, experiment_name: str,
+                       log_exposure: bool = True) -> DynamicConfig:
         """Get experiment config for a user (returns user's variant config).
 
         Statsig docs: https://docs.statsig.com/server/pythonSDK#getting-an-experiment
         Usage: exp = client.get_experiment(user, "btn_color_test")
                color = exp.get_value("color", "blue")
         """
-        return self._exp_manager.get_experiment(user.user_id, experiment_name)
+        dc = self._exp_manager.get_experiment(user, experiment_name)
+        if log_exposure:
+            self._log_exposure(user, "statsig::config_exposure", experiment_name,
+                               dc.rule_id, dc.group_name, dc.reason,
+                               variant=dc._variant)
+        return dc
 
-    def get_layer(self, user: StatsigUser, layer_name: str) -> DynamicConfig:
-        """Get layer config for a user (mutually exclusive experiments).
+    def get_layer(self, user: StatsigUser, layer_name: str):
+        """Get a Layer for a user (mutually exclusive experiments).
+
+        The returned Layer logs an exposure ONLY for the parameter actually read
+        (Statsig layer parameter exposure), attributed to the allocated experiment.
 
         Statsig docs: https://docs.statsig.com/server/pythonSDK#layers
         """
-        return self._exp_manager.get_layer(user.user_id, layer_name)
+        from user_soul.layer import Layer
+        dc = self._exp_manager.get_layer(user, layer_name)
+        allocated = getattr(dc, "_allocated_experiment", None)
 
-    def get_dynamic_config(self, user: StatsigUser, config_name: str) -> DynamicConfig:
+        def _on_param(param: str, exp_name: str) -> None:
+            self._log_exposure(user, "statsig::layer_exposure", layer_name,
+                               dc.rule_id, dc.group_name, dc.reason,
+                               parameter=param, allocated_experiment=exp_name)
+
+        return Layer(layer_name, dc.value, allocated_experiment=allocated,
+                     rule_id=dc.rule_id, group_name=dc.group_name, reason=dc.reason,
+                     on_parameter_exposure=_on_param)
+
+    def get_dynamic_config(self, user: StatsigUser, config_name: str,
+                           log_exposure: bool = True) -> DynamicConfig:
         """Get a dynamic config object for a user.
 
+        Priority: local override → registered DynamicConfigSpec (targeting) → empty.
         Statsig docs: https://docs.statsig.com/server/pythonSDK#dynamic-config
         """
         override = self._overrides.get(f"config:{config_name}")
-        dc = DynamicConfig(override) if override is not None else DynamicConfig()
-        dc._name = config_name
+        if override is not None:
+            dc = DynamicConfig(override, name=config_name, reason="LocalOverride")
+        else:
+            dc = self._exp_manager.evaluate_config(user, config_name)
+        if log_exposure:
+            self._log_exposure(user, "statsig::config_exposure", config_name,
+                               dc.rule_id, dc.group_name, dc.reason)
         return dc
 
     def log_event(
@@ -156,6 +221,49 @@ class UserSoulClient:
         """
         for prefix in ("gate:", "config:", "experiment:"):
             self._overrides.pop(f"{prefix}{name}", None)
+
+    # ─── Registration helpers (define gates / experiments / configs) ─────────
+    def register_gate(self, config) -> None:
+        self._exp_manager.add_gate(config)
+
+    def register_experiment(self, config) -> None:
+        self._exp_manager.add_experiment(config)
+
+    def register_dynamic_config(self, spec) -> None:
+        self._exp_manager.add_dynamic_config(spec)
+
+    # ─── Manual exposure logging (Statsig manuallyLog*Exposure) ──────────────
+    def manually_log_gate_exposure(self, user: StatsigUser, gate_name: str) -> None:
+        gate = self._exp_manager.evaluate_gate(user, gate_name)
+        self._log_exposure(user, "statsig::gate_exposure", gate_name,
+                           gate.rule_id, gate.group_name, gate.reason)
+
+    def manually_log_config_exposure(self, user: StatsigUser, config_name: str) -> None:
+        dc = self._exp_manager.evaluate_config(user, config_name)
+        self._log_exposure(user, "statsig::config_exposure", config_name,
+                           dc.rule_id, dc.group_name, dc.reason)
+
+    def manually_log_experiment_exposure(self, user: StatsigUser, experiment_name: str) -> None:
+        dc = self._exp_manager.get_experiment(user, experiment_name)
+        self._log_exposure(user, "statsig::config_exposure", experiment_name,
+                           dc.rule_id, dc.group_name, dc.reason, variant=dc._variant)
+
+    def manually_log_layer_parameter_exposure(
+        self, user: StatsigUser, layer_name: str, parameter: str) -> None:
+        dc = self._exp_manager.get_layer(user, layer_name)
+        self._log_exposure(user, "statsig::layer_exposure", layer_name,
+                           dc.rule_id, dc.group_name, dc.reason,
+                           parameter=parameter,
+                           allocated_experiment=getattr(dc, "_allocated_experiment", None))
+
+    def get_exposures(self, event_name: str | None = None) -> list:
+        """Return logged exposure events (for Pulse feeding / assertions)."""
+        names = ([event_name] if event_name else
+                 ["statsig::gate_exposure", "statsig::config_exposure", "statsig::layer_exposure"])
+        out = []
+        for n in names:
+            out.extend(self._event_logger._backend.query(event_name=n))
+        return out
 
     def get_config(self, user: StatsigUser, config_name: str) -> DynamicConfig:
         """Statsig primary name for get_dynamic_config.
