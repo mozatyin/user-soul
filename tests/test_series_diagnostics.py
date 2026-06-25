@@ -105,3 +105,47 @@ def test_adapter_flattens_scalar_series_and_skips_nonscalar():
 def test_adapter_domain_filter():
     rows = to_metric_rows(_fake_charts_data(), domains=["platform_basics"])
     assert all(r["domain"] == "Platform Basics" for r in rows)
+
+
+# ─── segmented tabs (by_country matrix) → per-segment series ──────────────────
+
+def _charts_data_with_country():
+    return {
+        "platform_basics": [{
+            "chart_id": "DAU", "title": "DAU", "metric_id": "DAU",
+            "business_domain": "Platform Basics",
+            "tabs": [
+                {"tab_id": "overall", "meta": {"metric_nature": "additive"},
+                 "data": {"dates": ["d1", "d2"], "values": [100.0, 110.0]}},
+                {"tab_id": "by_country", "meta": {"metric_nature": "additive"},
+                 "data": {"dates": ["d1", "d2"],
+                          "series": ["US", "SG", "MY"],
+                          "matrix": [[50.0, 9.0, 41.0], [55.0, 12.0, 43.0]]}},
+            ],
+        }],
+    }
+
+
+def test_segment_extraction_picks_right_column():
+    from user_soul.kix_adapter import available_segments
+    cd = _charts_data_with_country()
+    rows = to_metric_rows(cd, tab_id="by_country", segment="SG")
+    assert len(rows) == 1
+    r = rows[0]
+    assert r["metric_id"] == "DAU@SG"
+    assert r["values"] == [9.0, 12.0]        # the SG column, not US/MY
+    assert "SG" in r["title"]
+    assert available_segments(cd, "by_country") == {"US", "SG", "MY"}
+
+
+def test_segment_absent_metric_is_skipped():
+    cd = _charts_data_with_country()
+    rows = to_metric_rows(cd, tab_id="by_country", segment="JP")  # not in series
+    assert rows == []
+
+
+def test_overall_path_unchanged_when_no_segment():
+    cd = _charts_data_with_country()
+    rows = to_metric_rows(cd)  # default first tab = overall scalar
+    assert rows[0]["metric_id"] == "DAU"
+    assert rows[0]["values"] == [100.0, 110.0]

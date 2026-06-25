@@ -9,6 +9,7 @@ business-polarity so adverse moves surface as problems.
 Usage:
     python scripts/kix_diagnose.py [URL] [--tab overall] [--domains a,b]
     python scripts/kix_diagnose.py --file path/to/report.html
+    python scripts/kix_diagnose.py --tab by_country --segment SG   # SG-only cut
 
 Default URL: https://daily-report-site.pages.dev/ai/angel/latest/
 """
@@ -30,7 +31,7 @@ def _fetch(url: str) -> str:
 
 
 def main(argv: list[str]) -> int:
-    url, path, tab, domains = DEFAULT_URL, None, None, None
+    url, path, tab, domains, segment = DEFAULT_URL, None, None, None, None
     i = 0
     while i < len(argv):
         a = argv[i]
@@ -38,6 +39,8 @@ def main(argv: list[str]) -> int:
             path = argv[i + 1]; i += 2
         elif a == "--tab":
             tab = argv[i + 1]; i += 2
+        elif a == "--segment":
+            segment = argv[i + 1]; i += 2
         elif a == "--domains":
             domains = argv[i + 1].split(","); i += 2
         elif not a.startswith("-"):
@@ -46,7 +49,8 @@ def main(argv: list[str]) -> int:
             i += 1
 
     html = open(path, encoding="utf-8", errors="replace").read() if path else _fetch(url)
-    rows = to_metric_rows(extract_charts_data(html), tab_id=tab, domains=domains)
+    rows = to_metric_rows(extract_charts_data(html), tab_id=tab, domains=domains,
+                          segment=segment)
     diag = SeriesDiagnostics(baseline_window=14, alpha=0.05, winsorize_pct=0.05)
     findings = diag.diagnose(rows)
 
