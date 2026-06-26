@@ -45,14 +45,58 @@ def test_fdr_controls_false_alarms_across_many_metrics():
     assert len(sig) <= 3  # FDR keeps the false-alarm flood out
 
 
-def test_adverse_polarity_error_metric_up_is_problem():
+def test_sustained_adverse_error_metric_is_problem():
     d = SeriesDiagnostics(baseline_window=14)
-    vals = _flat(20, 10.0); vals[-1] = 80.0
+    vals = _flat(20, 10.0)
+    vals[-4:] = [70.0, 75.0, 78.0, 80.0]   # sustained multi-day rise, not a blip
     metrics = [{"metric_id": "err", "title": "错误率 error rate", "domain": "monitoring",
                 "dates": [f"d{i}" for i in range(20)], "values": vals}]
     f = d.diagnose(metrics)[0]
     assert f.adverse is True
+    assert f.sustained is True
     assert f.severity in ("P1", "P2")
+
+
+def test_single_day_adverse_spike_held_at_watch():
+    d = SeriesDiagnostics(baseline_window=14)
+    vals = _flat(20, 10.0); vals[-1] = 80.0   # one-day spike, not yet confirmed
+    metrics = [{"metric_id": "err", "title": "错误率 error rate", "domain": "monitoring",
+                "dates": [f"d{i}" for i in range(20)], "values": vals}]
+    f = d.diagnose(metrics)[0]
+    assert f.significant_fdr is True       # the day IS significant…
+    assert f.sustained is False
+    assert f.confirmation == "1d spike"
+    assert f.severity == "watch"           # …but not confirmed → held at watch
+
+
+def test_slow_bleed_caught_without_latest_day_spike():
+    # a steady decline: baseline drifts down with it, so no single day is a |z|>2
+    # outlier, yet the multi-day trend is real → must surface as "trend".
+    d = SeriesDiagnostics(baseline_window=14, min_trend_drift=0.1)
+    vals = [100.0 - 3.0 * i for i in range(20)]   # -3/day, smooth
+    metrics = [{"metric_id": "ret", "title": "留存 retention", "domain": "growth",
+                "dates": [f"d{i}" for i in range(20)], "values": vals}]
+    f = d.diagnose(metrics)[0]
+    assert f.slow_bleed is True
+    assert f.trend_significant_fdr is True
+    assert f.severity == "trend"
+
+
+def test_trend_fdr_controls_spurious_slopes():
+    # 60 noisy flat metrics + 1 real decline → trend-FDR keeps the noise out.
+    d = SeriesDiagnostics(baseline_window=14, min_trend_drift=0.1)
+    metrics = []
+    for i in range(60):
+        vals = [100 + ((i * 5 + j * 9) % 13 - 6) for j in range(20)]
+        metrics.append({"metric_id": f"n{i}", "title": "留存 retention", "domain": "g",
+                        "dates": [f"d{j}" for j in range(20)], "values": vals})
+    metrics.append({"metric_id": "REAL", "title": "留存 retention", "domain": "g",
+                    "dates": [f"d{j}" for j in range(20)],
+                    "values": [100.0 - 3.0 * j for j in range(20)]})
+    findings = d.diagnose(metrics)
+    bleeds = [f for f in findings if f.slow_bleed]
+    assert any(f.metric_id == "REAL" for f in bleeds)
+    assert len(bleeds) <= 4   # not ~3 chance trends from 60 noise series
 
 
 def test_favorable_mover_is_positive_not_problem():
@@ -222,6 +266,31 @@ def test_render_markdown_has_sections_and_cut_labels():
     assert "# KiX Diagnostic Overlay — 06-24" in md
     assert "Positive movers" in md
     assert "[country:SG]" in md
+
+
+def test_corroboration_across_cuts():
+    from user_soul.kix_report import _corroboration
+    from user_soul.series_diagnostics import MetricFinding
+
+    def mf(mid, cut_adverse=True):
+        f = MetricFinding(mid, "留存 retention", "g", "d", 0.1, 0.2, 0.05, -2.5,
+                          0.01, -30.0, -0.1, "down", "ratio")
+        f.adverse = cut_adverse
+        f.severity = "watch"
+        return f
+
+    results = {
+        "country:IN": [mf("RET@IN")],
+        "country:PH": [mf("RET@PH")],
+        "country:TH": [mf("RET@TH")],
+        "country:US": [mf("OTHER@US")],   # different metric, only 1 cut
+    }
+    corr = _corroboration(results, min_cuts=3)
+    titles = {t for t, _, _ in corr}
+    assert "留存 retention" in titles
+    base = next(c for c in corr if c[0] == "留存 retention")
+    assert base[1] == 3                    # RET appeared adverse in 3 cuts
+    assert "country:US" not in base[2]     # OTHER metric not merged in
 
 
 def test_build_report_end_to_end_from_html():

@@ -16,10 +16,11 @@ from user_soul.kix_adapter import (
 from user_soul.series_diagnostics import SeriesDiagnostics
 
 _SEV_HEADERS = [
-    ("P1", "🔴 P1 — adverse, FDR-significant, |z|≥3"),
-    ("P2", "🟠 P2 — adverse, FDR-significant"),
+    ("P1", "🔴 P1 — adverse, FDR-significant, sustained, |z|≥3"),
+    ("P2", "🟠 P2 — adverse, FDR-significant, sustained"),
+    ("trend", "📉 Slow bleed — adverse multi-day trend the daily snapshot misses"),
     ("positive", "🟢 Positive movers — FDR-significant, favourable"),
-    ("watch", "🟡 Watch — raw-significant adverse, NOT FDR-confirmed"),
+    ("watch", "🟡 Watch — raw/unconfirmed adverse (single-day spike or thin)"),
 ]
 
 
@@ -55,6 +56,30 @@ def multi_cut_diagnose(charts_data: dict, cuts: list[tuple] | None = None,
     return out
 
 
+def _corroboration(results: dict, min_cuts: int = 3) -> list[tuple]:
+    """Find metrics flagged adverse across many independent cuts at once.
+
+    Per-cut FDR holds each cut's single-day move at "watch", but the SAME metric
+    moving adversely across many markets/channels simultaneously is strong
+    corroboration the per-cut view scatters. Returns
+    [(base_metric_title, n_cuts, [cut labels]), ...] sorted by n_cuts desc.
+    """
+    import re
+    by_metric: dict = {}
+    adverse_sev = {"P1", "P2", "watch", "trend"}
+    for cut, findings in results.items():
+        for f in findings:
+            if f.severity in adverse_sev and f.adverse:
+                base = f.metric_id.split("@")[0]
+                title = re.sub(r"\s*\([^)]*\)\s*$", "", f.title).strip() or base
+                by_metric.setdefault(base, {"title": title, "cuts": set()})
+                by_metric[base]["cuts"].add(cut)
+    out = [(v["title"], len(v["cuts"]), sorted(v["cuts"]))
+           for v in by_metric.values() if len(v["cuts"]) >= min_cuts]
+    out.sort(key=lambda t: -t[1])
+    return out
+
+
 def render_markdown(results: dict, date: str = "", watch_limit: int = 15) -> str:
     """Consolidate per-cut findings into one ranked markdown report."""
     tagged: dict = {sev: [] for sev, _ in _SEV_HEADERS}
@@ -72,26 +97,41 @@ def render_markdown(results: dict, date: str = "", watch_limit: int = 15) -> str
         f"~{0.05:.0%}·K raw p<0.05 by chance — only FDR-significant rows are real._")
     lines.append("")
 
+    corr = _corroboration(results)
+    if corr:
+        lines.append("## 🔁 Corroborated across cuts — same metric down in many segments at once")
+        lines.append("_Each cut alone is held at watch; moving together is the real signal._")
+        for title, n, cuts in corr:
+            preview = ", ".join(c for c in cuts if c != "overall")[:90]
+            lines.append(f"- **{title}** — adverse in **{n}** cuts ({preview})")
+        lines.append("")
+
     any_finding = False
     for sev, header in _SEV_HEADERS:
         items = tagged[sev]
         if not items:
             continue
         any_finding = True
-        items.sort(key=lambda cf: -abs(cf[1].z_score))
-        if sev == "watch":
+        if sev == "trend":
+            # trends rank by trend significance, NOT latest-day z (irrelevant here)
+            items.sort(key=lambda cf: cf[1].trend_p_value)
+            shown, extra = items[:watch_limit], max(0, len(items) - watch_limit)
+        elif sev == "watch":
+            items.sort(key=lambda cf: -abs(cf[1].z_score))
             shown, extra = items[:watch_limit], max(0, len(items) - watch_limit)
         else:
+            items.sort(key=lambda cf: -abs(cf[1].z_score))
             shown, extra = items, 0
         lines.append(f"## {header} ({len(items)})")
         for cut, f in shown:
             arrow = "▲" if f.direction == "up" else "▼" if f.direction == "down" else "—"
             tag = " ⚠low-N" if f.low_sample else ""
             ratio = " (ratio—verify denominator)" if f.metric_nature == "ratio" else ""
+            conf = "" if sev == "trend" else f" · {f.confirmation}"
             lines.append(
                 f"- **[{cut}]** {f.title.strip()} {arrow} "
                 f"{f.wow_change_pct:+.1f}% WoW · latest={f.latest_value:g} "
-                f"(z={f.z_score:+.2f}, p={f.p_value:.4f}){tag}{ratio}")
+                f"(z={f.z_score:+.2f}, p={f.p_value:.4f}){conf}{tag}{ratio}")
         if extra:
             lines.append(f"- _…and {extra} more watch items_")
         lines.append("")
