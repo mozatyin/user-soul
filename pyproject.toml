@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "user-soul"
+version = "0.1.0"
+description = "User-Soul — user advocate across the product lifecycle (research/simulate/compare, Statsig-compatible experiment+pulse layer, ELTM/KiX integration, playtest)"
+requires-python = ">=3.10"
+# `import user_soul` needs zero third-party packages (all heavy imports are lazy).
+# `anthropic` is required as soon as any LLM-backed capability runs.
+dependencies = [
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+# LLM plumbing (make_client / model-id helpers) is delegated to ELTM:
+#   user_soul/core.py  ->  from eltm.llm_client import make_client
+#   user_soul/backends/anthropic.py, user_soul/core.py -> from eltm.config import ...
+# So ELTM is REQUIRED for any real LLM call (research/simulate/compare/review/launch),
+# even though `import user_soul` succeeds without it. Kept as an extra (not a core dep)
+# because ELTM is a private git repo with no release tag yet — pinning it into the
+# core deps would break `pip install user-soul` for anyone without git access.
+# Pin to a tag once ELTM cuts a release; @main is not reproducible.
+llm = ["eltm @ git+https://github.com/mozatyin/eltm.git@main"]
+stats = ["scipy"]          # user_soul/pulse.py -> from scipy import stats (Pulse diagnostics)
+# playtest = ["code_soul @ git+<url>"]  # user_soul/playtest_bridge.py -> code_soul.playtest.* (URL TBD)
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+# Package lives in the user_soul/ subdir; include it + its subpackages
+# (backends, engines, stages). Root-level scripts (test_checkers.py, ttt_*.py)
+# and the tests/ dir are excluded from the wheel.
+include = ["user_soul*"]
